@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { Role } from "@prisma/client";
@@ -11,10 +11,10 @@ const ROLES = {
 };
 
 // GET: Fetch required components for a specific product
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export const GET = async (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => {
   try {
     // Add role check for viewing
     const { userId } = await auth();
@@ -28,13 +28,13 @@ export async function GET(
     }
 
     // Check if batches should be included
-    const url = new URL(req.url);
+    const url = new URL(request.url);
     const includeBatches = url.searchParams.get('includeBatches') === 'true';
 
     if (includeBatches) {
       // Fetch product components with their associated components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: params.id },
+        where: { productId: context.params.id },
         include: {
           component: true
         }
@@ -73,7 +73,7 @@ export async function GET(
     } else {
       // Original behavior - just return product components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: params.id },
+        where: { productId: context.params.id },
         include: {
           component: {
             select: {
@@ -98,7 +98,7 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+};
 
 interface BOMItem {
   componentId: string;
@@ -106,10 +106,10 @@ interface BOMItem {
 }
 
 // POST: Add a component requirement to a product (Admin Only)
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export const POST = async (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -122,7 +122,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden: You do not have permission to manage product components." }, { status: 403 });
     }
 
-    const productId = params.id;
+    const productId = context.params.id;
     const bomItems = await request.json() as BOMItem[];
 
     // Validate product exists
@@ -163,4 +163,4 @@ export async function POST(
     console.error('Error updating BOM:', error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-} 
+}; 

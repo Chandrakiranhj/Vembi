@@ -11,19 +11,19 @@ const ROLES = {
 };
 
 // GET: Fetch a single product by ID
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const GET = async (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => {
   try {
-    const { userId } = await getAuth(req);
+    const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view this product." }, { status: 403 });
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!product) {
@@ -41,21 +41,21 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+};
 
 // PUT: Update a product by ID
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const PUT = async (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => {
   try {
-    const { userId } = await getAuth(req);
+    const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to update products." }, { status: 403 });
     }
 
-    const json = await req.json();
+    const json = await request.json();
     const { modelNumber, name, description, specifications } = json;
 
     if (!modelNumber || !name) {
@@ -68,7 +68,7 @@ export async function PUT(
     const existingProduct = await prisma.product.findFirst({
       where: {
         modelNumber,
-        id: { not: params.id },
+        id: { not: context.params.id },
       },
     });
 
@@ -80,7 +80,7 @@ export async function PUT(
     }
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: context.params.id },
       data: {
         modelNumber,
         name,
@@ -97,26 +97,26 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
+};
 
 // DELETE: Delete a product by ID
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const DELETE = async (
+  request: NextRequest,
+  context: { params: { id: string } }
+) => {
   try {
-    const { userId } = await getAuth(req);
+    const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to delete products." }, { status: 403 });
     }
 
     const assembliesUsingProduct = await prisma.assembly.count({
-      where: { productId: params.id },
+      where: { productId: context.params.id },
     });
 
     const returnsUsingProduct = await prisma.return.count({
-      where: { productId: params.id },
+      where: { productId: context.params.id },
     });
 
     if (assembliesUsingProduct > 0 || returnsUsingProduct > 0) {
@@ -131,7 +131,7 @@ export async function DELETE(
     }
 
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     return NextResponse.json({ success: true });
@@ -142,4 +142,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}; 
