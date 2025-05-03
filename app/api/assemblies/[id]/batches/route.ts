@@ -12,7 +12,7 @@ const ROLES = {
 // GET: Fetch batches used in an assembly
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -25,7 +25,7 @@ export async function GET(
       );
     }
 
-    const assemblyId = params.id;
+    const assemblyId = context.params.id;
 
     if (!assemblyId) {
       return NextResponse.json(

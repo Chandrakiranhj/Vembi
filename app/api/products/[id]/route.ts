@@ -13,7 +13,7 @@ const ROLES = {
 // GET: Fetch a single product by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!product) {
@@ -46,7 +46,7 @@ export async function GET(
 // PUT: Update a product by ID
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -68,7 +68,7 @@ export async function PUT(
     const existingProduct = await prisma.product.findFirst({
       where: {
         modelNumber,
-        id: { not: params.id },
+        id: { not: context.params.id },
       },
     });
 
@@ -80,7 +80,7 @@ export async function PUT(
     }
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: context.params.id },
       data: {
         modelNumber,
         name,
@@ -102,7 +102,7 @@ export async function PUT(
 // DELETE: Delete a product by ID
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -112,11 +112,11 @@ export async function DELETE(
     }
 
     const assembliesUsingProduct = await prisma.assembly.count({
-      where: { productId: params.id },
+      where: { productId: context.params.id },
     });
 
     const returnsUsingProduct = await prisma.return.count({
-      where: { productId: params.id },
+      where: { productId: context.params.id },
     });
 
     if (assembliesUsingProduct > 0 || returnsUsingProduct > 0) {
@@ -131,7 +131,7 @@ export async function DELETE(
     }
 
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     return NextResponse.json({ success: true });
