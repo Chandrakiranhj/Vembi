@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { auth } from '@clerk/nextjs';
 import prisma from '@/lib/prisma';
 import { checkUserRole } from '@/lib/roleCheck';
 import { Role } from '@prisma/client';
@@ -17,13 +16,13 @@ async function isAdmin(userId: string) {
 }
 
 export default async function AdminBOMManagementPage() {
-  const session = await getServerSession(authOptions);
+  const { userId } = auth();
   
-  if (!session?.user?.id) {
-    redirect('/auth/signin');
+  if (!userId) {
+    redirect('/sign-in');
   }
   
-  const isUserAdmin = await isAdmin(session.user.id);
+  const isUserAdmin = await isAdmin(userId);
   
   if (!isUserAdmin) {
     redirect('/dashboard');
