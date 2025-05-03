@@ -31,7 +31,6 @@ export default async function AdminBOMManagementPage() {
   
   // Fetch all products
   const products = await prisma.product.findMany({
-    where: { isActive: true },
     orderBy: { name: 'asc' },
     select: {
       id: true,
@@ -42,7 +41,6 @@ export default async function AdminBOMManagementPage() {
   
   // Fetch all components
   const components = await prisma.component.findMany({
-    where: { isActive: true },
     orderBy: { name: 'asc' },
     select: {
       id: true,
