@@ -1,4 +1,4 @@
 {
-  "buildCommand": "npm install --include=dev && next build --no-lint",
+  "buildCommand": "npm install --include=dev && npx prisma generate && next build --no-lint",
   "framework": "nextjs"
 } 
