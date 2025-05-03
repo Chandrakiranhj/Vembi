@@ -10,16 +10,10 @@ const ROLES = {
   MANAGE_BOM: [Role.ADMIN], // Only Admin can modify
 };
 
-export interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
 // GET: Fetch required components for a specific product
 export async function GET(
   req: Request,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     // Add role check for viewing
@@ -40,7 +34,7 @@ export async function GET(
     if (includeBatches) {
       // Fetch product components with their associated components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: context.params.id },
+        where: { productId: params.id },
         include: {
           component: true
         }
@@ -79,7 +73,7 @@ export async function GET(
     } else {
       // Original behavior - just return product components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: context.params.id },
+        where: { productId: params.id },
         include: {
           component: {
             select: {
@@ -114,7 +108,7 @@ interface BOMItem {
 // POST: Add a component requirement to a product (Admin Only)
 export async function POST(
   request: Request,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const { userId } = await auth();
@@ -128,7 +122,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden: You do not have permission to manage product components." }, { status: 403 });
     }
 
-    const productId = context.params.id;
+    const productId = params.id;
     const bomItems = await request.json() as BOMItem[];
 
     // Validate product exists

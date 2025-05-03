@@ -9,16 +9,10 @@ const ROLES = {
   VIEW_ASSEMBLY: [Role.ADMIN, Role.ASSEMBLER, Role.RETURN_QC, Role.SERVICE_PERSON],
 };
 
-export interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
 // GET: Fetch batches used in an assembly
 export async function GET(
   req: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -31,7 +25,7 @@ export async function GET(
       );
     }
 
-    const assemblyId = context.params.id;
+    const assemblyId = params.id;
 
     if (!assemblyId) {
       return NextResponse.json(
