@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm install && next build --skip-linting=true",
+  "framework": "nextjs"
+} 

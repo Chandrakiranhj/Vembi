@@ -33,6 +33,9 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 
+// Add this line to tell Next.js not to pre-render this page
+export const dynamic = 'force-dynamic';
+
 type DefectSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 type DefectStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 

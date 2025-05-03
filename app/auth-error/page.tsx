@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
 
 // Error messages based on reason code
 const errorMessages: Record<string, { title: string; description: string }> = {
@@ -29,7 +30,7 @@ const errorMessages: Record<string, { title: string; description: string }> = {
   }
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const reason = searchParams?.get('reason') || 'serverError';
   const detail = searchParams?.get('detail');
@@ -77,5 +78,17 @@ export default function AuthErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">Loading error details...</div>
+      </div>
+    }>
+      <AuthErrorContent />
+    </Suspense>
   );
 } 

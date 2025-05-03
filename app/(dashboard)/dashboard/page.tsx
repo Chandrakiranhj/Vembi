@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Add this line to tell Next.js not to pre-render this page
+export const dynamic = 'force-dynamic';
+
 // Activity interface
 interface Activity {
   id: string;

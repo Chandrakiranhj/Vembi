@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 
+// Add dynamic configuration to prevent static generation
+export const dynamic = 'force-dynamic';
+
 // Define stats interface to match other endpoints
 interface ActivityStats {
   totalDefects: number;
