@@ -10,10 +10,16 @@ const ROLES = {
   MANAGE_BOM: [Role.ADMIN], // Only Admin can modify
 };
 
+export interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 // GET: Fetch required components for a specific product
 export async function GET(
   req: Request,
-  context: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     // Add role check for viewing
@@ -108,7 +114,7 @@ interface BOMItem {
 // POST: Add a component requirement to a product (Admin Only)
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const { userId } = await auth();

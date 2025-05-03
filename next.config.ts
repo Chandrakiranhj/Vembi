@@ -3,9 +3,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['next-auth'],
-  },
+  serverExternalPackages: ['next-auth'],
 }
 
 export default nextConfig;

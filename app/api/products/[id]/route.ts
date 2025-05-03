@@ -10,10 +10,16 @@ const ROLES = {
   MANAGE_PRODUCTS: [Role.ADMIN],
 };
 
+export interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 // GET: Fetch a single product by ID
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -46,7 +52,7 @@ export async function GET(
 // PUT: Update a product by ID
 export async function PUT(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const { userId } = await getAuth(req);
@@ -102,7 +108,7 @@ export async function PUT(
 // DELETE: Delete a product by ID
 export async function DELETE(
   req: NextRequest,
-  context: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const { userId } = await getAuth(req);
