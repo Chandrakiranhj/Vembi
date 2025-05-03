@@ -10,11 +10,10 @@ const ROLES = {
   MANAGE_PRODUCTS: [Role.ADMIN],
 };
 
+type Params = { params: { id: string } };
+
 // GET: Fetch a single product by ID
-export const GET = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_PRODUCTS);
@@ -23,7 +22,7 @@ export const GET = async (
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: context.params.id },
+      where: { id: params.id },
     });
 
     if (!product) {
@@ -41,13 +40,10 @@ export const GET = async (
       { status: 500 }
     );
   }
-};
+}
 
 // PUT: Update a product by ID
-export const PUT = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function PUT(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
@@ -68,7 +64,7 @@ export const PUT = async (
     const existingProduct = await prisma.product.findFirst({
       where: {
         modelNumber,
-        id: { not: context.params.id },
+        id: { not: params.id },
       },
     });
 
@@ -80,7 +76,7 @@ export const PUT = async (
     }
 
     const product = await prisma.product.update({
-      where: { id: context.params.id },
+      where: { id: params.id },
       data: {
         modelNumber,
         name,
@@ -97,13 +93,10 @@ export const PUT = async (
       { status: 500 }
     );
   }
-};
+}
 
 // DELETE: Delete a product by ID
-export const DELETE = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
@@ -112,11 +105,11 @@ export const DELETE = async (
     }
 
     const assembliesUsingProduct = await prisma.assembly.count({
-      where: { productId: context.params.id },
+      where: { productId: params.id },
     });
 
     const returnsUsingProduct = await prisma.return.count({
-      where: { productId: context.params.id },
+      where: { productId: params.id },
     });
 
     if (assembliesUsingProduct > 0 || returnsUsingProduct > 0) {
@@ -131,7 +124,7 @@ export const DELETE = async (
     }
 
     await prisma.product.delete({
-      where: { id: context.params.id },
+      where: { id: params.id },
     });
 
     return NextResponse.json({ success: true });
@@ -142,4 +135,4 @@ export const DELETE = async (
       { status: 500 }
     );
   }
-}; 
+} 

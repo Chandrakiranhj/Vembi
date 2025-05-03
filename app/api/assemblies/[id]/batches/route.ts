@@ -9,11 +9,10 @@ const ROLES = {
   VIEW_ASSEMBLY: [Role.ADMIN, Role.ASSEMBLER, Role.RETURN_QC, Role.SERVICE_PERSON],
 };
 
+type Params = { params: { id: string } };
+
 // GET: Fetch batches used in an assembly
-export const GET = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await getAuth(request);
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_ASSEMBLY);
@@ -25,7 +24,7 @@ export const GET = async (
       );
     }
 
-    const assemblyId = context.params.id;
+    const assemblyId = params.id;
 
     if (!assemblyId) {
       return NextResponse.json(

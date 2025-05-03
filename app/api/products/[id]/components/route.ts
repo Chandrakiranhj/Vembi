@@ -10,11 +10,10 @@ const ROLES = {
   MANAGE_BOM: [Role.ADMIN], // Only Admin can modify
 };
 
+type Params = { params: { id: string } };
+
 // GET: Fetch required components for a specific product
-export const GET = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
     // Add role check for viewing
     const { userId } = await auth();
@@ -34,7 +33,7 @@ export const GET = async (
     if (includeBatches) {
       // Fetch product components with their associated components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: context.params.id },
+        where: { productId: params.id },
         include: {
           component: true
         }
@@ -73,7 +72,7 @@ export const GET = async (
     } else {
       // Original behavior - just return product components
       const productComponents = await prisma.productComponent.findMany({
-        where: { productId: context.params.id },
+        where: { productId: params.id },
         include: {
           component: {
             select: {
@@ -98,7 +97,7 @@ export const GET = async (
       { status: 500 }
     );
   }
-};
+}
 
 interface BOMItem {
   componentId: string;
@@ -106,10 +105,7 @@ interface BOMItem {
 }
 
 // POST: Add a component requirement to a product (Admin Only)
-export const POST = async (
-  request: NextRequest,
-  context: { params: { id: string } }
-) => {
+export async function POST(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -122,7 +118,7 @@ export const POST = async (
       return NextResponse.json({ error: "Forbidden: You do not have permission to manage product components." }, { status: 403 });
     }
 
-    const productId = context.params.id;
+    const productId = params.id;
     const bomItems = await request.json() as BOMItem[];
 
     // Validate product exists
@@ -163,4 +159,4 @@ export const POST = async (
     console.error('Error updating BOM:', error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}; 
+} 
