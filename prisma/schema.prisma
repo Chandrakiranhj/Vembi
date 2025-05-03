@@ -1,0 +1,263 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @unique // Clerk user ID
+  name           String
+  email          String   @unique
+  role           Role     @default(PENDING_APPROVAL)
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assemblies     Assembly[] @relation("CreatedBy")
+  returns        Return[]   @relation("ProcessedBy")
+  defectReports  Defect[]   @relation("ReportedBy")
+  qcReturns      ReturnQC[]
+}
+
+enum Role {
+  PENDING_APPROVAL
+  ADMIN
+  ASSEMBLER
+  RETURN_QC
+  SERVICE_PERSON
+  QC_PERSON
+}
+
+model Vendor {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String   @unique
+  contactPerson   String?
+  email           String?
+  phone           String?
+  address         String?
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  stockBatches    StockBatch[] // Relation to stock batches
+}
+
+model Component {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  sku             String   @unique
+  description     String?
+  category        String
+  minimumQuantity Int      @default(10)
+  unitPrice       Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  stockBatches    StockBatch[]
+  returnComponents ReturnComponent[]
+  defects         Defect[]
+  bomEntries      ProductComponent[]
+  assemblyUsages  AssemblyComponentBatch[]
+  returnQCDefects ReturnQCDefect[]
+}
+
+model StockBatch {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  batchNumber         String    @unique
+  componentId         String    @db.ObjectId
+  component           Component @relation(fields: [componentId], references: [id])
+  initialQuantity     Int
+  currentQuantity     Int
+  vendorId            String    @db.ObjectId
+  vendor              Vendor    @relation(fields: [vendorId], references: [id])
+  dateReceived        DateTime  @default(now())
+  expiryDate          DateTime?
+  notes               String?
+  unitCost            Float?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  assemblyUsages      AssemblyComponentBatch[]
+  returnQCDefects     ReturnQCDefect[]
+
+  @@map("stock_batches")
+}
+
+model Product {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  modelNumber  String   @unique
+  name         String
+  description  String?
+  specifications Json?
+  assemblies   Assembly[]
+  returns      Return[]
+  bomComponents ProductComponent[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Assembly {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId               String   @db.ObjectId
+  product                 Product  @relation(fields: [productId], references: [id])
+  serialNumber            String   @unique
+  assembledById           String   @db.ObjectId
+  assembledBy             User     @relation("CreatedBy", fields: [assembledById], references: [id])
+  status                  AssemblyStatus @default(IN_PROGRESS)
+  startTime               DateTime @default(now())
+  completionTime          DateTime?
+  notes                   String?
+  assemblyComponentBatches AssemblyComponentBatch[]
+  returns                 Return[]
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+enum AssemblyStatus {
+  IN_PROGRESS
+  PASSED_QC
+  FAILED_QC
+  SHIPPED
+}
+
+model AssemblyComponentBatch {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  assemblyId    String      @db.ObjectId
+  assembly      Assembly    @relation(fields: [assemblyId], references: [id])
+  componentId   String      @db.ObjectId
+  component     Component   @relation(fields: [componentId], references: [id])
+  stockBatchId  String      @db.ObjectId
+  stockBatch    StockBatch  @relation(fields: [stockBatchId], references: [id])
+  quantityUsed  Int
+  createdAt     DateTime    @default(now())
+
+  @@unique([assemblyId, stockBatchId])
+  @@map("assembly_component_batches")
+}
+
+model Return {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  serialNumber    String
+  reason          String
+  modelNumber     String?
+  loggedById      String   @db.ObjectId
+  loggedBy        User     @relation("ProcessedBy", fields: [loggedById], references: [id])
+  assemblyId      String?  @db.ObjectId
+  assembly        Assembly? @relation(fields: [assemblyId], references: [id])
+  productId       String?  @db.ObjectId
+  product         Product? @relation(fields: [productId], references: [id])
+  status          ReturnStatus @default(RECEIVED)
+  qc              ReturnQC?
+  components      ReturnComponent[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum ReturnStatus {
+  RECEIVED
+  IN_INSPECTION
+  REPAIRED
+  REPLACED
+  REFUNDED
+  CLOSED
+  RETURNED
+}
+
+model ReturnComponent {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  returnId      String   @db.ObjectId
+  return        Return   @relation(fields: [returnId], references: [id])
+  componentId   String   @db.ObjectId
+  component     Component @relation(fields: [componentId], references: [id])
+  defective     Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Defect {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  componentId   String   @db.ObjectId
+  component     Component @relation(fields: [componentId], references: [id])
+  reportedById  String   @db.ObjectId
+  reportedBy    User     @relation("ReportedBy", fields: [reportedById], references: [id])
+  severity      DefectSeverity @default(MEDIUM)
+  description   String
+  status        DefectStatus @default(OPEN)
+  resolution    String?
+  images        String[] // URLs to images
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum DefectSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DefectStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model ProductComponent {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId       String   @db.ObjectId
+  product         Product  @relation(fields: [productId], references: [id])
+  componentId     String   @db.ObjectId
+  component       Component @relation(fields: [componentId], references: [id])
+  quantityRequired Int     // Quantity of this component needed for one unit of the product
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([productId, componentId])
+  @@map("product_components")
+}
+
+model ReturnQC {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  returnId    String      @unique @db.ObjectId
+  return      Return      @relation(fields: [returnId], references: [id])
+  qcById      String      @db.ObjectId
+  qcBy        User        @relation(fields: [qcById], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  status      QCStatus    @default(IN_PROGRESS)
+  defects     ReturnQCDefect[]
+}
+
+model ReturnQCDefect {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  qcId        String      @db.ObjectId
+  qc          ReturnQC    @relation(fields: [qcId], references: [id])
+  componentId String      @db.ObjectId
+  component   Component   @relation(fields: [componentId], references: [id])
+  batchId     String      @db.ObjectId
+  batch       StockBatch  @relation(fields: [batchId], references: [id])
+  defectType  String      // e.g., "Physical Damage", "Functional Issue"
+  description String
+  severity    Severity    @default(MEDIUM)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum QCStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+} 

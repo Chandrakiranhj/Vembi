@@ -1,0 +1,9 @@
+import { clerkMiddleware } from '@clerk/nextjs/server';
+
+// Export clerkMiddleware with no configuration
+export default clerkMiddleware();
+
+// Export an empty matcher config to use Next.js defaults
+export const config = {
+  matcher: [],
+};

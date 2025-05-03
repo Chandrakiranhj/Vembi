@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vembi Inventory & QC System
+
+A comprehensive inventory management and quality control system for Vembi, an electronics manufacturing company. This application is designed to transition the company's operations from Google Sheets/Apps Script to a more robust, full-stack solution with improved security, real-time data management, and role-based access controls.
+
+## Features
+
+- **User Authentication & Role Management**
+  - Secure login with Clerk authentication
+  - Role-based access (Admin, Assembler, Return QC, Service Person)
+  - User profile management
+
+- **Dashboard & Analytics**
+  - Real-time overview of inventory status
+  - Low stock alerts
+  - Component usage metrics
+  - Recent activities tracking
+
+- **Inventory Management**
+  - Component tracking with minimum quantity alerts
+  - Category-based organization
+  - Search and filtering capabilities
+  - Batch tracking for incoming components
+
+- **Assembly Quality Control**
+  - Model number lookup
+  - Component inspection checklist
+  - Pass/fail status tracking
+  - Notes and documentation
+
+- **Returns Quality Control**
+  - Customer return processing
+  - Component inspection for defects
+  - Return status tracking
+  - Defect logging and resolution tracking
+
+- **Defects Log**
+  - Detailed defect documentation
+  - Severity classification
+  - Resolution tracking
+  - Historical defect analysis
+
+- **Component Reporting**
+  - Ability for service personnel to report component issues
+  - Linking reports to specific batches/components
+  - Documentation of issues
+
+- **Search & Reporting**
+  - Cross-entity search functionality
+  - Custom report generation
+  - Data export options
+
+## Technology Stack
+
+- **Frontend**
+  - Next.js 
+  - React 
+  - TailwindCSS
+  - Lucide React (icons)
+  - Clerk (authentication)
+
+- **Backend**
+  - Next.js API Routes
+  - Prisma ORM
+  - MongoDB
+
+- **Development Tools**
+  - TypeScript
+  - Prisma Studio
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18.x or higher
+- npm or yarn
+- MongoDB Atlas account or local MongoDB instance
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository
+   ```
+   git clone https://github.com/your-username/vembi-inventory-qc.git
+   cd vembi-inventory-qc
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies
+   ```
+   npm install
+   ```
 
-## Learn More
+3. Set up environment variables
+   ```
+   cp .env.example .env.local
+   ```
+   Edit `.env.local` with your configuration details.
 
-To learn more about Next.js, take a look at the following resources:
+4. Set up the database
+   ```
+   npx prisma generate
+   npx prisma db push
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Run the development server
+   ```
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Deploy on Vercel
+## User Roles & Permissions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Admin**: Full access to all features and data
+- **Assembler**: Access to assembly QC features and limited inventory access
+- **Return QC**: Process customer returns and inspect returned components
+- **Service Person**: Report component defects and view component information
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Vembi Team for providing requirements and feedback
+- Open source community for the amazing tools and libraries
