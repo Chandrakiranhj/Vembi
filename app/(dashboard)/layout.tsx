@@ -101,6 +101,15 @@ const UsersIcon = () => (
   </svg>
 );
 
+// Define AI Assistant icon (similar style to other icons)
+const AIAssistantIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a8 8 0 0 0-8 8c0 6.5 8 12 8 12s8-5.5 8-12a8 8 0 0 0-8-8Z" />
+    <path d="M12 13V7" />
+    <path d="M15 10h-6" />
+  </svg>
+);
+
 // Define navigation items with role-based access
 const navItems: NavItem[] = [
   { 
@@ -137,6 +146,12 @@ const navItems: NavItem[] = [
     name: "Reports", 
     href: "/reports", 
     icon: ReportsIcon, 
+    allowedRoles: ["ADMIN"]
+  },
+  { 
+    name: "AI Assistant", 
+    href: "/ai-assistant", 
+    icon: AIAssistantIcon, 
     allowedRoles: ["ADMIN"]
   },
   { 
