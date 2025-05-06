@@ -282,13 +282,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="md:hidden fixed inset-0 bg-black/20 z-10 hidden" id="sidebar-backdrop"></div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6">
               <div className="flex items-center gap-2 md:gap-6">
                 {/* Mobile menu button */}
-                <button className="md:hidden p-1.5 rounded-md hover:bg-gray-100 text-[#8B2131]" id="mobile-menu-button">
+                <button className="md:hidden p-1.5 rounded-md hover:bg-gray-100 text-[#8B2131]" id="mobile-menu-button" aria-label="Open menu">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="4" x2="20" y1="12" y2="12" />
                     <line x1="4" x2="20" y1="6" y2="6" />
@@ -351,12 +351,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </div>
       
       {/* Mobile sidebar */}
-      <div className="fixed inset-y-0 left-0 w-72 bg-gradient-to-b from-[#6D1A27] to-[#4A1219] text-slate-50 transform -translate-x-full transition-transform duration-300 ease-in-out z-30 md:hidden" id="mobile-sidebar">
+      <div className="fixed inset-y-0 left-0 w-72 bg-gradient-to-b from-[#6D1A27] to-[#4A1219] text-slate-50 transform -translate-x-full transition-transform duration-300 ease-in-out z-30 md:hidden overflow-y-auto" id="mobile-sidebar">
         <div className="p-6 border-b border-[#8B2131]/30 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-2">
             <span className="text-xl font-bold text-white">Vembi IM & QC</span>
           </Link>
-          <button id="close-sidebar" className="text-[#F5F1E4] hover:text-white">
+          <button id="close-sidebar" className="text-[#F5F1E4] hover:text-white p-1.5 rounded-md" aria-label="Close menu">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
@@ -405,29 +405,63 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       
       <script dangerouslySetInnerHTML={{
         __html: `
-          document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const mobileSidebar = document.getElementById('mobile-sidebar');
-            const closeSidebar = document.getElementById('close-sidebar');
-            const backdrop = document.getElementById('sidebar-backdrop');
-            
-            if (mobileMenuButton && mobileSidebar && closeSidebar && backdrop) {
-              mobileMenuButton.addEventListener('click', function() {
-                mobileSidebar.classList.remove('-translate-x-full');
-                backdrop.classList.remove('hidden');
-              });
+          // Initialize mobile menu handlers immediately instead of waiting for DOMContentLoaded
+          (function() {
+            function setupMobileMenu() {
+              const mobileMenuButton = document.getElementById('mobile-menu-button');
+              const mobileSidebar = document.getElementById('mobile-sidebar');
+              const closeSidebar = document.getElementById('close-sidebar');
+              const backdrop = document.getElementById('sidebar-backdrop');
               
-              closeSidebar.addEventListener('click', function() {
-                mobileSidebar.classList.add('-translate-x-full');
-                backdrop.classList.add('hidden');
-              });
-              
-              backdrop.addEventListener('click', function() {
-                mobileSidebar.classList.add('-translate-x-full');
-                backdrop.classList.add('hidden');
-              });
+              if (mobileMenuButton && mobileSidebar && closeSidebar && backdrop) {
+                // Toggle sidebar when menu button is clicked
+                mobileMenuButton.addEventListener('click', function() {
+                  mobileSidebar.classList.remove('-translate-x-full');
+                  backdrop.classList.remove('hidden');
+                  document.body.classList.add('overflow-hidden'); // Prevent scrolling when menu is open
+                });
+                
+                // Hide sidebar when close button is clicked
+                closeSidebar.addEventListener('click', function() {
+                  mobileSidebar.classList.add('-translate-x-full');
+                  backdrop.classList.add('hidden');
+                  document.body.classList.remove('overflow-hidden');
+                });
+                
+                // Hide sidebar when backdrop is clicked
+                backdrop.addEventListener('click', function() {
+                  mobileSidebar.classList.add('-translate-x-full');
+                  backdrop.classList.add('hidden');
+                  document.body.classList.remove('overflow-hidden');
+                });
+                
+                // Also allow closing the sidebar with the Escape key
+                document.addEventListener('keydown', function(e) {
+                  if (e.key === 'Escape' && !mobileSidebar.classList.contains('-translate-x-full')) {
+                    mobileSidebar.classList.add('-translate-x-full');
+                    backdrop.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                  }
+                });
+                
+                // Close the sidebar when a link is clicked
+                const sidebarLinks = mobileSidebar.querySelectorAll('a');
+                sidebarLinks.forEach(link => {
+                  link.addEventListener('click', function() {
+                    mobileSidebar.classList.add('-translate-x-full');
+                    backdrop.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                  });
+                });
+              }
             }
-          });
+            
+            // Run setup immediately
+            setupMobileMenu();
+            
+            // Also run on DOMContentLoaded as a fallback
+            document.addEventListener('DOMContentLoaded', setupMobileMenu);
+          })();
         `
       }} />
       

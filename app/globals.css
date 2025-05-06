@@ -9,6 +9,18 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Make sure tables are responsive */
+  table {
+    @apply w-full;
+  }
+  /* Ensure images don't overflow their containers */
+  img {
+    @apply max-w-full h-auto;
+  }
+  /* Improve form element sizing on mobile */
+  input, select, textarea {
+    @apply text-base;
+  }
 }
 
 :root {
@@ -132,6 +144,27 @@
     transform: translateY(-4px);
     transition: transform 0.3s ease;
   }
+
+  /* Mobile responsive utilities */
+  .mobile-safe-area {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Responsive scrollable containers */
+  .scrollable-x {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Touch-friendly buttons */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
 }
 
 @keyframes fadeIn {
@@ -151,5 +184,33 @@
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+/* Mobile viewport fix for iOS and other mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Responsive tables for mobile */
+@media (max-width: 640px) {
+  .table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Stack card layouts on mobile */
+  .card-stack > * {
+    margin-bottom: 1rem;
+  }
+  
+  /* Larger touch targets on mobile */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
