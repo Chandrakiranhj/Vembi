@@ -17,6 +17,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 // import { revalidatePath } from 'next/cache'; // Removed unused import
 import { ApproveUserDialog } from './_components/ApproveUserDialog';
+import { EditUserNameDialog } from './_components/EditUserNameDialog';
+import { DeleteUserDialog } from './_components/DeleteUserDialog';
 // Import server actions
 import { rejectUser, updateUserRole } from './_components/_actions/userActions'; // Import both actions
 
@@ -38,16 +40,28 @@ interface User {
 
 // Role badges with colors based on role importance
 const RoleBadge = ({ role }: { role: Role }) => {
-  const colors: Record<Role, string> = {
-    [Role.ADMIN]: 'bg-red-100 text-red-800',
-    [Role.SERVICE_PERSON]: 'bg-blue-100 text-blue-800',
-    [Role.RETURN_QC]: 'bg-purple-100 text-purple-800',
-    [Role.ASSEMBLER]: 'bg-green-100 text-green-800',
-    [Role.PENDING_APPROVAL]: 'bg-yellow-100 text-yellow-800', // Use enum directly
+  // Define colors for each role
+  const getColorClass = (roleValue: Role): string => {
+    switch (roleValue) {
+      case Role.ADMIN:
+        return 'bg-red-100 text-red-800';
+      case Role.SERVICE_PERSON:
+        return 'bg-blue-100 text-blue-800';
+      case Role.RETURN_QC:
+        return 'bg-purple-100 text-purple-800';
+      case Role.ASSEMBLER:
+        return 'bg-green-100 text-green-800';
+      case Role.QC_PERSON:
+        return 'bg-indigo-100 text-indigo-800';
+      case Role.PENDING_APPROVAL:
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
   
   return (
-    <Badge className={colors[role] || 'bg-gray-100'}>
+    <Badge className={getColorClass(role)}>
       {/* Check if role is a string before calling replace */}
       {typeof role === 'string' ? role.replace('_', ' ') : role}
     </Badge>
@@ -244,25 +258,33 @@ export default async function UsersPage() {
                       </div>
                     </td>
                     <td className="p-3">
-                       {/* Use imported updateUserRole Server Action */} 
-                       <form action={updateUserRole}> 
-                         {/* Add hidden input for userId */}
-                         <input type="hidden" name="userId" value={user.id} />
-                         <div className="flex items-center space-x-2">
-                           <Select name="role" defaultValue={user.role}>
-                             <SelectTrigger className="w-[140px]">
-                               <SelectValue placeholder="Select role" />
-                             </SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value={Role.ADMIN}>Admin</SelectItem>
-                               <SelectItem value={Role.SERVICE_PERSON}>Service Person</SelectItem>
-                               <SelectItem value={Role.RETURN_QC}>Return QC</SelectItem>
-                               <SelectItem value={Role.ASSEMBLER}>Assembler</SelectItem>
-                             </SelectContent>
-                           </Select>
-                           <Button type="submit" size="sm">Update</Button>
-                         </div>
-                       </form>
+                      <div className="space-y-2">
+                        {/* Role Update Form */}
+                        <form action={updateUserRole}> 
+                          <input type="hidden" name="userId" value={user.id} />
+                          <div className="flex items-center space-x-2">
+                            <Select name="role" defaultValue={user.role}>
+                              <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Select role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={Role.ADMIN}>Admin</SelectItem>
+                                <SelectItem value={Role.SERVICE_PERSON}>Service Person</SelectItem>
+                                <SelectItem value={Role.RETURN_QC}>Return QC</SelectItem>
+                                <SelectItem value={Role.ASSEMBLER}>Assembler</SelectItem>
+                                <SelectItem value={Role.QC_PERSON}>QC Person</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button type="submit" size="sm">Update</Button>
+                          </div>
+                        </form>
+                        
+                        {/* Edit Name and Delete Buttons */}
+                        <div className="flex items-center space-x-2 mt-2">
+                          <EditUserNameDialog userId={user.id} userName={user.name} />
+                          <DeleteUserDialog userId={user.id} userName={user.name} />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}

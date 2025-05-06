@@ -141,4 +141,118 @@ export async function updateUserRole(formData: FormData): Promise<void> { // Ret
     console.error('Error updating user role:', error);
     throw new Error('Failed to update user role.');
   }
+}
+
+/**
+ * Server Action to completely remove a user from the database.
+ * This is different from reject as it's used for approved users.
+ * 
+ * @param formData - The form data containing the userId.
+ * @returns Promise<void> - Form action return type.
+ */
+export async function removeUser(formData: FormData): Promise<void> {
+  const authData = await auth();
+  const adminClerkId = authData.userId;
+  
+  // Validate admin permissions
+  if (!adminClerkId) { 
+    throw new Error("Unauthorized: No logged-in user."); 
+  }
+  
+  const adminUser = await prisma.user.findFirst({ 
+    where: { userId: adminClerkId },
+    select: { role: true }
+  });
+  
+  if (adminUser?.role !== Role.ADMIN) {
+    throw new Error("Forbidden: Only admins can remove users.");
+  }
+
+  // Get and validate userId
+  const userId = formData.get('userId') as string;
+  if (!userId) {
+    throw new Error('User ID missing.');
+  }
+
+  try {
+    // First check that the user exists
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!userToDelete) {
+      throw new Error('User not found.');
+    }
+
+    // Delete user from database
+    await prisma.user.delete({ 
+      where: { id: userId } 
+    });
+    
+    // Refresh the page
+    revalidatePath('/users');
+  } catch (error) {
+    console.error("Error removing user:", error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to remove user.');
+  }
+}
+
+/**
+ * Server Action to update a user's name.
+ * 
+ * @param formData - The form data containing the userId and new name.
+ * @returns Promise<{success: boolean, error?: string}> - Response to be used by client.
+ */
+export async function updateUserName(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  const authData = await auth();
+  const adminClerkId = authData.userId;
+  
+  // Validate admin permissions
+  if (!adminClerkId) { 
+    return { success: false, error: "Unauthorized: No logged-in user." }; 
+  }
+  
+  const adminUser = await prisma.user.findFirst({ 
+    where: { userId: adminClerkId },
+    select: { role: true }
+  });
+  
+  if (adminUser?.role !== Role.ADMIN) {
+    return { success: false, error: "Forbidden: Only admins can edit user names." };
+  }
+
+  // Get and validate parameters
+  const userId = formData.get('userId') as string;
+  const newName = formData.get('name') as string;
+  
+  if (!userId) {
+    return { success: false, error: "User ID is required." };
+  }
+  
+  if (!newName || newName.trim() === '') {
+    return { success: false, error: "Name cannot be empty." };
+  }
+
+  try {
+    // Update the user's name
+    await prisma.user.update({
+      where: { id: userId },
+      data: { name: newName.trim() },
+      select: { id: true, name: true }
+    });
+
+    // Refresh the page
+    revalidatePath('/users');
+    
+    return { 
+      success: true 
+    };
+  } catch (error) {
+    console.error("Error updating user name:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to update user name." 
+    };
+  }
 } 
