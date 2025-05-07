@@ -107,7 +107,17 @@ export async function generateResponse(
 // Helper function to get relevant inventory data based on the question
 async function getRelevantInventoryData(question: string): Promise<string | null> {
   try {
-    // Product production capacity questions
+    // BOM structure and assembly pattern questions
+    if (question.includes('bom') || question.includes('bill of materials') ||
+        question.includes('assembly structure') || question.includes('product structure') ||
+        question.includes('how products are made') || question.includes('how assemblies are made') ||
+        (question.includes('assemblies') && question.includes('made'))) {
+      
+      const productsData = await dbHelpers.getProductsWithBOM();
+      return JSON.stringify(productsData, null, 2);
+    }
+
+    // Production capacity questions
     if (question.includes('how many') && 
         (question.includes('produce') || question.includes('production') || question.includes('make')) && 
         question.includes('current inventory')) {
