@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useEffect } from 'react';
-import { ArrowRight, CheckCircle, BarChart3, Shield, Package, Settings, Users, Database, Zap } from 'lucide-react';
+import { 
+  ArrowRight, CheckCircle, BarChart3, Shield, Package, 
+  Settings, Users, Database, Zap, Sparkles, 
+  ChevronRight, CheckCheck
+} from 'lucide-react';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -20,348 +24,318 @@ export default function LandingPage() {
   }, [isLoaded, userId, isSignedIn, router]);
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="container mx-auto py-6 px-4 sm:px-6 flex justify-between items-center">
-        <div className="flex items-center">
-          <div className="w-12 h-12 mr-3 bg-gradient-to-br from-[#8B2131] to-[#6D1A27] rounded-lg flex items-center justify-center shadow-sm text-white font-bold text-xl">
-            V
+    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-white flex flex-col">
+      {/* Modern Navbar */}
+      <header className="py-6 px-4 sm:px-6 lg:px-8 border-b border-slate-100 backdrop-blur-sm bg-white/80 fixed w-full z-50">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#8B2131] to-[#6D1A27] rounded-lg flex items-center justify-center shadow-md text-white font-bold text-xl">
+              V
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              <span className="text-[#8B2131]">VEMBI</span>
+            </h1>
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#8B2131] to-[#6D1A27] bg-clip-text text-transparent">
-            VEMBI
-          </h1>
-        </div>
-        <div className="flex space-x-4">
-          <Link 
-            href="/sign-in" 
-            className="px-4 py-2 text-gray-600 hover:text-[#8B2131] transition-colors"
-          >
-            Sign In
-          </Link>
-          <Link 
-            href="/sign-up" 
-            className="px-4 py-2 bg-gradient-to-r from-[#8B2131] to-[#6D1A27] text-white rounded-md hover:from-[#7A1C2A] hover:to-[#5D1622] transition-all duration-300 shadow-md flex items-center"
-          >
-            Get Started <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
+          <div className="hidden md:flex items-center space-x-6">
+            <Link href="/sign-in" className="text-sm font-medium text-slate-600 hover:text-[#8B2131] transition-colors">
+              Sign In
+            </Link>
+            <Link 
+              href="/sign-up" 
+              className="text-sm font-medium px-5 py-2.5 bg-[#8B2131] text-white rounded-lg hover:bg-[#6D1A27] shadow-sm transition-colors flex items-center gap-2"
+            >
+              Get Started <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="md:hidden flex items-center">
+            <Link 
+              href="/sign-in" 
+              className="px-4 py-2 text-sm font-medium text-[#8B2131] hover:bg-slate-50 rounded-lg transition-colors"
+            >
+              Sign In
+            </Link>
+          </div>
         </div>
       </header>
       
-      {/* Hero Section */}
-      <main className="flex-grow">
+      {/* Hero Section with 3D effect */}
+      <main className="flex-grow pt-24">
         <section className="relative overflow-hidden">
-          {/* Abstract background pattern */}
+          {/* Abstract background elements */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#8B2131]/5 rounded-full blur-3xl"></div>
-            <div className="absolute top-1/3 -left-24 w-80 h-80 bg-[#6D1A27]/5 rounded-full blur-3xl"></div>
-            <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-[#F5F1E4]/50 rounded-full blur-3xl"></div>
+            <div className="absolute -top-64 left-1/2 transform -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-gradient-to-br from-[#8B2131]/5 via-[#6D1A27]/3 to-transparent blur-3xl"></div>
+            <div className="absolute bottom-32 right-0 w-[600px] h-[600px] rounded-full bg-[#F5F1E4]/30 blur-3xl"></div>
           </div>
           
-          <div className="container mx-auto py-16 md:py-24 px-4 sm:px-6 relative">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-              <div className="space-y-8 md:pr-8 animate-fadeIn">
-                <div className="inline-block px-4 py-1.5 bg-[#F5F1E4] rounded-full text-[#8B2131] font-medium text-sm shadow-sm mb-2">
-                  VEMBI Internal Management System
+          <div className="container mx-auto py-16 md:py-28 px-4 sm:px-6 lg:px-8 relative">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-8 max-w-2xl animate-fadeIn">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full text-[#8B2131] border border-[#8B2131]/10 shadow-sm w-fit">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-sm font-medium">VEMBI Inventory Management</span>
                 </div>
-                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#8B2131] to-[#6D1A27] bg-clip-text text-transparent leading-tight">
-                  Quality Control Inventory Management
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
+                  Quality Control <span className="text-[#8B2131]">Reimagined</span>
                 </h2>
-                <p className="text-xl text-gray-600 leading-relaxed">
-                  Streamline your quality control processes with our comprehensive inventory management solution built specifically for VEMBI&apos;s manufacturing operations.
+                <p className="text-xl text-slate-600 leading-relaxed">
+                  Streamline your manufacturing operations with our comprehensive inventory and quality control management platform designed specifically for VEMBI.
                 </p>
-                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                <div className="flex flex-col sm:flex-row gap-5">
                   <Link 
                     href="/sign-up" 
-                    className="px-8 py-3.5 bg-gradient-to-r from-[#8B2131] to-[#6D1A27] text-white rounded-md hover:from-[#7A1C2A] hover:to-[#5D1622] transition-all duration-300 shadow-lg font-medium flex items-center justify-center group"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-[#8B2131] text-white rounded-lg shadow-lg hover:bg-[#6D1A27] transition-colors font-medium gap-2 group"
                   >
                     Create Account 
-                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                   <Link 
                     href="/sign-in" 
-                    className="px-8 py-3.5 bg-white text-gray-800 border border-gray-200 rounded-md hover:bg-gray-50 hover:border-[#8B2131]/30 transition font-medium shadow flex items-center justify-center"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-white text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-[#8B2131]/30 transition font-medium shadow"
                   >
                     Sign In
                   </Link>
                 </div>
+                <div className="pt-4 flex items-center text-slate-600 text-sm">
+                  <CheckCheck className="h-4 w-4 mr-2 text-emerald-500" />
+                  Designed for VEMBI&apos;s specific manufacturing workflow
+                </div>
               </div>
               
-              <div className="relative hidden md:block">
-                <div className="w-full aspect-[4/3] bg-gradient-to-br from-[#F5F1E4] to-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-6">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#8B2131] to-[#6D1A27]"></div>
+              <div className="relative hidden lg:block">
+                <div className="relative bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden p-1">
+                  <div className="h-8 w-full bg-slate-50 rounded-t-xl flex items-center space-x-2 px-4">
+                    <div className="w-3 h-3 rounded-full bg-slate-200"></div>
+                    <div className="w-3 h-3 rounded-full bg-slate-200"></div>
+                    <div className="w-3 h-3 rounded-full bg-slate-200"></div>
+                    <div className="ml-4 w-1/3 h-4 bg-slate-100 rounded-md"></div>
+                  </div>
                   
-                  {/* Dashboard UI mockup using pure CSS */}
-                  <div className="w-full h-full bg-white rounded-lg shadow-sm p-4 flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="w-32 h-5 bg-[#8B2131]/10 rounded"></div>
-                      <div className="flex space-x-2">
-                        <div className="w-8 h-8 bg-[#F5F1E4] rounded-full"></div>
-                        <div className="w-20 h-8 bg-[#F5F1E4] rounded"></div>
-                      </div>
-                    </div>
-                    
+                  <div className="p-6 bg-slate-50/30">
+                    {/* Dashboard UI mockup */}
                     <div className="grid grid-cols-3 gap-4 mb-6">
                       {[1, 2, 3].map(i => (
-                        <div key={i} className="h-24 bg-[#F5F1E4]/50 rounded-lg flex flex-col justify-center items-center p-4">
-                          <div className="w-12 h-12 mb-2 rounded-full bg-[#8B2131]/10 flex items-center justify-center">
-                            <div className="w-6 h-6 rounded-full bg-[#8B2131]/20"></div>
+                        <div key={i} className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
+                          <div className="w-8 h-8 rounded-lg mb-3 bg-[#8B2131]/10 flex items-center justify-center">
+                            <div className="w-4 h-4 text-[#8B2131]">
+                              {i === 1 && <Package className="w-4 h-4" />}
+                              {i === 2 && <CheckCircle className="w-4 h-4" />}
+                              {i === 3 && <BarChart3 className="w-4 h-4" />}
+                            </div>
                           </div>
-                          <div className="w-2/3 h-3 bg-[#8B2131]/10 rounded"></div>
+                          <div className="h-2 w-1/2 bg-slate-200 rounded-md mb-2"></div>
+                          <div className="h-6 w-full bg-slate-100 rounded-md"></div>
                         </div>
                       ))}
                     </div>
                     
-                    <div className="flex-grow bg-gray-50 rounded-lg p-4">
-                      <div className="h-4 w-1/3 bg-[#8B2131]/10 rounded mb-4"></div>
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="h-4 w-40 bg-slate-200 rounded-md"></div>
+                        <div className="h-8 w-24 bg-[#8B2131]/10 rounded-lg"></div>
+                      </div>
+                      
                       <div className="space-y-3">
                         {[1, 2, 3, 4].map(i => (
-                          <div key={i} className="flex items-center">
-                            <div className="w-2/3 h-3 bg-[#8B2131]/5 rounded"></div>
-                            <div className="ml-auto w-16 h-3 bg-[#8B2131]/10 rounded"></div>
+                          <div key={i} className="flex items-center p-2 bg-slate-50 rounded-lg">
+                            <div className="w-8 h-8 rounded-md bg-slate-100 mr-3"></div>
+                            <div className="w-1/3 h-4 bg-slate-200 rounded-md"></div>
+                            <div className="ml-auto flex gap-2">
+                              <div className="w-16 h-6 bg-slate-100 rounded-md"></div>
+                              <div className="w-6 h-6 rounded-md bg-[#8B2131]/10"></div>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#F5F1E4] rounded-full flex items-center justify-center">
-                    <div className="bg-[#8B2131] rounded-full w-16 h-16 flex items-center justify-center text-white font-bold">
-                      v2.0
+                </div>
+                
+                {/* 3D effect decorative elements */}
+                <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-[#F5F1E4]/40 rounded-full blur-3xl -z-10"></div>
+                <div className="absolute -top-8 -left-8 w-16 h-16 bg-[#8B2131]/10 rounded-full -z-10"></div>
+                <div className="absolute -top-4 right-1/3 w-4 h-4 bg-[#6D1A27]/20 rounded-full"></div>
+                <div className="absolute -bottom-4 left-1/3 w-6 h-6 bg-[#8B2131]/20 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Features Section */}
+        <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50/50 relative overflow-hidden">
+          <div className="container mx-auto max-w-7xl relative">
+            <div className="text-center mb-16">
+              <div className="inline-block px-3 py-1 bg-[#8B2131]/5 rounded-lg text-[#8B2131] text-sm font-medium mb-3">
+                Platform Features
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+                Everything you need to manage quality
+              </h3>
+              <p className="text-slate-600 max-w-2xl mx-auto">
+                Our comprehensive platform provides all the tools your team needs for efficient inventory management and quality control.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: <Package />,
+                  title: "Inventory Tracking",
+                  description: "Track components and manage stock levels with precision. Get alerts for low stock and streamline procurement."
+                },
+                {
+                  icon: <CheckCircle />,
+                  title: "Quality Control",
+                  description: "Implement rigorous quality checks with customized inspection stages. Identify and track defects throughout production."
+                },
+                {
+                  icon: <Settings />,
+                  title: "Assembly Management",
+                  description: "Track complex assemblies and their components. Manage the entire assembly process with detailed component traceability."
+                },
+                {
+                  icon: <Shield />,
+                  title: "Returns Processing",
+                  description: "Efficiently process and assess returned items. Integrate quality inspection into the returns workflow."
+                },
+                {
+                  icon: <BarChart3 />,
+                  title: "Advanced Analytics",
+                  description: "Make informed decisions with comprehensive reporting. Visualize trends and identify bottlenecks."
+                },
+                {
+                  icon: <Zap />,
+                  title: "Real-time Updates",
+                  description: "Stay informed with real-time inventory and status updates. Collaborative features for seamless teamwork."
+                }
+              ].map((feature, index) => (
+                <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 hover:shadow-md hover:border-[#8B2131]/10 transition-all duration-200">
+                  <div className="w-12 h-12 bg-[#8B2131]/5 rounded-xl flex items-center justify-center mb-5 text-[#8B2131]">
+                    {feature.icon}
+                  </div>
+                  <h4 className="text-xl font-semibold mb-3 text-slate-900">{feature.title}</h4>
+                  <p className="text-slate-600">
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        
+        {/* Role-based access section */}
+        <section className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAyMCAwIEwgMCAwIDAgMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIwLjUiIHN0cm9rZS1vcGFjaXR5PSIwLjAzIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9InVybCgjZ3JpZCkiIC8+PC9zdmc+')] opacity-30"></div>
+          
+          <div className="container mx-auto max-w-7xl relative">
+            <div className="text-center mb-16">
+              <div className="inline-block px-3 py-1 bg-[#8B2131]/5 rounded-lg text-[#8B2131] text-sm font-medium mb-3">
+                Role-Based Access
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+                Tailored for every team member
+              </h3>
+              <p className="text-slate-600 max-w-2xl mx-auto">
+                Each team member gets access to the tools they need based on their role in the organization.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: <Users />,
+                  title: "Assembly Team",
+                  description: "Streamlined component selection, batch tracking, and assembly processes.",
+                  features: ["Component tracking", "Batch selection", "Assembly documentation"]
+                },
+                {
+                  icon: <Shield />,
+                  title: "QC Inspectors",
+                  description: "Comprehensive tools for quality inspection and defect tracking.",
+                  features: ["Inspection checklists", "Defect documentation", "Quality metrics"]
+                },
+                {
+                  icon: <Database />,
+                  title: "Inventory Management",
+                  description: "Complete oversight of inventory levels and component tracking.",
+                  features: ["Stock level monitoring", "Batch management", "Component lifecycle tracking"]
+                }
+              ].map((role, index) => (
+                <div 
+                  key={index} 
+                  className="bg-white rounded-xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 group"
+                >
+                  <div className="h-1.5 w-full bg-[#8B2131]"></div>
+                  <div className="p-6">
+                    <div className="w-12 h-12 rounded-lg border border-slate-100 shadow-sm flex items-center justify-center mb-5 text-[#8B2131] group-hover:bg-[#8B2131]/5 transition-colors">
+                      {role.icon}
                     </div>
+                    <h4 className="text-xl font-semibold text-slate-900 mb-2">{role.title}</h4>
+                    <p className="text-slate-600 mb-6">
+                      {role.description}
+                    </p>
+                    <ul className="space-y-3">
+                      {role.features.map((feature, i) => (
+                        <li key={i} className="flex items-center text-slate-700">
+                          <div className="w-5 h-5 rounded-full bg-[#8B2131]/5 flex items-center justify-center mr-3 text-[#8B2131]">
+                            <CheckCircle className="w-3 h-3" />
+                          </div>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
         
-        {/* Features Section with enhanced aesthetics */}
-        <section className="bg-white py-16 md:py-24 px-4 sm:px-6 relative overflow-hidden">
-          {/* Decorative background elements */}
-          <div className="absolute left-0 top-1/4 w-64 h-64 bg-[#F5F1E4] rounded-full opacity-30 blur-3xl"></div>
-          <div className="absolute right-0 bottom-1/4 w-80 h-80 bg-[#F5F1E4] rounded-full opacity-30 blur-3xl"></div>
-          
-          <div className="container mx-auto max-w-6xl relative">
-            <div className="text-center mb-16">
-              <h3 className="text-3xl md:text-4xl font-bold text-center relative inline-block">
-                <span className="bg-gradient-to-r from-[#8B2131] to-[#6D1A27] bg-clip-text text-transparent">
-                  System Features
-                </span>
-                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-1.5 bg-gradient-to-r from-[#8B2131] to-[#6D1A27] rounded-full"></div>
-              </h3>
-              <p className="text-gray-600 mt-8 max-w-2xl mx-auto text-lg">
-                Access the tools you need for quality control and inventory management.
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <Package className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Inventory Tracking</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Track components and manage stock levels with precision. Get alerts for low stock and streamline procurement.
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <CheckCircle className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Quality Control</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Implement rigorous quality checks with customized inspection stages. Identify and track defects throughout the production cycle.
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <Settings className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Assembly Management</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Track complex assemblies and their components. Manage the entire assembly process with detailed component traceability.
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <Shield className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Returns Processing</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Efficiently process and assess returned items. Integrate quality inspection into the returns workflow for continuous improvement.
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <BarChart3 className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Advanced Analytics</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Make informed decisions with comprehensive reporting. Visualize trends, identify bottlenecks, and optimize your processes.
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 group">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#F5F1E4] to-[#E9DEC5] rounded-lg flex items-center justify-center mb-6 shadow-sm group-hover:bg-gradient-to-br group-hover:from-[#8B2131]/10 group-hover:to-[#6D1A27]/10 transition-all duration-300">
-                  <Zap className="h-7 w-7 text-[#8B2131]" />
-                </div>
-                <h4 className="text-xl font-semibold mb-3">Real-time Updates</h4>
-                <p className="text-gray-600 leading-relaxed">
-                  Stay informed with real-time inventory and status updates. Collaborative features allow your team to work together seamlessly.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-        
-        {/* Role Cards Section with enhanced aesthetics */}
-        <section className="py-16 md:py-24 px-4 sm:px-6 bg-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAyMCAwIEwgMCAwIDAgMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhCMjEzMSIgc3Ryb2tlLXdpZHRoPSIwLjUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1Ii8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9InVybCgjZ3JpZCkiIC8+PC9zdmc+')] opacity-10"></div>
-          
-          <div className="container mx-auto max-w-6xl relative">
-            <div className="text-center mb-16">
-              <h3 className="text-3xl font-bold text-center mb-4">
-                <span className="bg-gradient-to-r from-[#8B2131] to-[#6D1A27] bg-clip-text text-transparent">
-                  System Access by Role
-                </span>
-              </h3>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                Each team member has access to features specific to their needs
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-gradient-to-br from-[#F5F1E4] to-white rounded-xl shadow-md overflow-hidden border border-gray-100 group hover:shadow-lg transition-all duration-300">
-                <div className="h-2 bg-gradient-to-r from-[#8B2131] to-[#6D1A27]"></div>
-                <div className="p-6">
-                  <div className="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center mb-4 group-hover:bg-[#F5F1E4] transition-colors duration-300">
-                    <Users className="h-6 w-6 text-[#8B2131]" />
-                  </div>
-                  <h4 className="text-lg font-semibold mb-2">Assembly Team</h4>
-                  <p className="text-gray-600 mb-4">
-                    Streamlined component selection, batch tracking, and assembly processes.
-                  </p>
-                  <ul className="space-y-2">
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Component tracking
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Batch selection
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Assembly documentation
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-[#F5F1E4] to-white rounded-xl shadow-md overflow-hidden border border-gray-100 group hover:shadow-lg transition-all duration-300">
-                <div className="h-2 bg-gradient-to-r from-[#8B2131] to-[#6D1A27]"></div>
-                <div className="p-6">
-                  <div className="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center mb-4 group-hover:bg-[#F5F1E4] transition-colors duration-300">
-                    <Shield className="h-6 w-6 text-[#8B2131]" />
-                  </div>
-                  <h4 className="text-lg font-semibold mb-2">QC Inspectors</h4>
-                  <p className="text-gray-600 mb-4">
-                    Comprehensive tools for quality inspection and defect tracking.
-                  </p>
-                  <ul className="space-y-2">
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Inspection checklists
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Defect documentation
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Quality metrics
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-[#F5F1E4] to-white rounded-xl shadow-md overflow-hidden border border-gray-100 group hover:shadow-lg transition-all duration-300">
-                <div className="h-2 bg-gradient-to-r from-[#8B2131] to-[#6D1A27]"></div>
-                <div className="p-6">
-                  <div className="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center mb-4 group-hover:bg-[#F5F1E4] transition-colors duration-300">
-                    <Database className="h-6 w-6 text-[#8B2131]" />
-                  </div>
-                  <h4 className="text-lg font-semibold mb-2">Inventory Management</h4>
-                  <p className="text-gray-600 mb-4">
-                    Complete oversight of inventory levels and component tracking.
-                  </p>
-                  <ul className="space-y-2">
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Stock level monitoring
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Batch management
-                    </li>
-                    <li className="flex items-center text-sm text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-[#8B2131] mr-2 flex-shrink-0" />
-                      Component lifecycle tracking
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        
-        {/* CTA Section with enhanced aesthetics */}
-        <section className="py-12 md:py-16 px-4 sm:px-6 bg-gradient-to-r from-[#8B2131] to-[#6D1A27] text-white relative overflow-hidden">
+        {/* CTA Section */}
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#8B2131] to-[#6D1A27] text-white relative overflow-hidden">
           <div className="absolute inset-0">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
           </div>
           
           <div className="container mx-auto max-w-4xl text-center relative">
-            <h3 className="text-2xl md:text-3xl font-bold mb-6">
+            <h3 className="text-3xl font-bold mb-6">
               Access VEMBI Inventory QC System
             </h3>
+            <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">
+              Sign in to access your account or create a new one to get started
+            </p>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6 justify-center">
               <Link 
                 href="/sign-in" 
-                className="px-10 py-4 bg-white text-[#8B2131] rounded-md hover:bg-gray-100 transition shadow-lg inline-flex items-center justify-center font-medium group"
+                className="px-8 py-3 bg-white text-[#8B2131] rounded-lg hover:bg-gray-100 transition shadow-lg inline-flex items-center justify-center font-medium group gap-2"
               >
-                Sign In <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                Sign In <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </div>
         </section>
       </main>
       
-      {/* Footer with enhanced aesthetics */}
-      <footer className="bg-white py-8 border-t border-gray-100">
-        <div className="container mx-auto px-4 sm:px-6">
+      {/* Footer */}
+      <footer className="bg-white py-8 border-t border-slate-100">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-6 md:mb-0">
-              <div className="w-10 h-10 mr-3 bg-gradient-to-br from-[#8B2131] to-[#6D1A27] rounded-lg flex items-center justify-center text-white font-bold text-xl">
+            <div className="flex items-center gap-3 mb-6 md:mb-0">
+              <div className="w-8 h-8 bg-[#8B2131] rounded-md flex items-center justify-center text-white font-bold text-sm">
                 V
               </div>
               <div>
-                <h4 className="text-lg font-bold bg-gradient-to-r from-[#8B2131] to-[#6D1A27] bg-clip-text text-transparent">VEMBI</h4>
-                <span className="text-gray-500 text-sm">
+                <h4 className="font-semibold text-[#8B2131]">VEMBI</h4>
+                <span className="text-slate-500 text-xs">
                   © {new Date().getFullYear()} VEMBI. All rights reserved.
                 </span>
               </div>
             </div>
-            <div className="text-gray-500 text-sm">
+            <div className="text-slate-500 text-sm">
               Internal inventory management system
             </div>
           </div>
-      </div>
+        </div>
       </footer>
     </div>
   );
