@@ -1,10 +1,11 @@
 import { UserButton } from "@clerk/nextjs";
-import { Clock, CheckCircle2, RefreshCw, Mail } from "lucide-react";
+import { Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { auth } from "@clerk/nextjs/server";
+import StatusButtons from "./status-buttons";
 
 export default async function PendingApprovalPage() {
   const { userId } = await auth();
@@ -58,25 +59,7 @@ export default async function PendingApprovalPage() {
                       <p className="text-sm text-gray-500 mt-1 break-all">{userId}</p>
                     </div>
                     
-                    <div className="space-y-3">
-                      <Button 
-                        variant="outline" 
-                        className="w-full flex items-center justify-center" 
-                        onClick={() => window.location.reload()}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" /> Check Status
-                      </Button>
-                      
-                      <Button 
-                        variant="outline" 
-                        className="w-full flex items-center justify-center"
-                        asChild
-                      >
-                        <Link href={`mailto:support@vembi.com?subject=Account%20Approval%20Status&body=Hello%20VEMBI%20support,%0A%0AI%20recently%20registered%20for%20an%20account%20and%20would%20like%20to%20check%20on%20the%20status%20of%20my%20approval.%0A%0AMy%20account%20ID:%20${userId}%0A%0AThank%20you!`}>
-                          <Mail className="h-4 w-4 mr-2" /> Email Support
-                        </Link>
-                      </Button>
-                    </div>
+                    <StatusButtons userId={userId} />
                   </CardContent>
                 </Card>
               </div>

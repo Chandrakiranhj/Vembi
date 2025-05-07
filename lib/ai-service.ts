@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, GenerativeModel, Content, Part } from '@google/generative-ai';
 import { AI_CONFIG } from './ai-config';
 import * as dbHelpers from './ai-db-helpers';
+import { enhanceResponseContext } from './ai-advanced-capabilities';
 
 // Initialize the Google AI client
 let googleAI: GoogleGenerativeAI;
@@ -68,9 +69,12 @@ export async function generateResponse(
         }
       }
     }
+    
+    // Apply advanced capabilities to enhance the response context
+    const enhancedMessages = await enhanceResponseContext(processedMessages);
 
     // Convert the chat messages to the format expected by the Google AI API
-    const formattedMessages: Content[] = processedMessages.map(msg => {
+    const formattedMessages: Content[] = enhancedMessages.map(msg => {
       // Google AI uses 'model' instead of 'assistant' and doesn't have 'system'
       const role = msg.role === 'assistant' ? 'model' : 
                   (msg.role === 'system' ? 'user' : 'user');

@@ -42,6 +42,10 @@ export function DocumentsManager() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [pineconeStatus, setPineconeStatus] = useState<'loading' | 'connected' | 'disconnected'>('loading');
+  const [pineconeError, setPineconeError] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState<boolean>(false);
+  const [addingDocument, setAddingDocument] = useState<boolean>(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   
   // New document form state
   const [newDocument, setNewDocument] = useState({
@@ -53,16 +57,23 @@ export function DocumentsManager() {
   // Check Pinecone connection status
   const checkPineconeStatus = async () => {
     try {
+      setCheckingConnection(true);
       const response = await fetch('/api/ai/status');
       if (response.ok) {
         const data = await response.json();
         setPineconeStatus(data.pinecone ? 'connected' : 'disconnected');
+        setPineconeError(data.pineconeStatus?.error || null);
+        console.log('Pinecone status:', data);
       } else {
         setPineconeStatus('disconnected');
+        setPineconeError('Failed to get status from server');
       }
     } catch (error) {
       console.error('Error checking Pinecone status:', error);
       setPineconeStatus('disconnected');
+      setPineconeError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setCheckingConnection(false);
     }
   };
 
@@ -157,7 +168,8 @@ export function DocumentsManager() {
     }
 
     try {
-      // Show uploading toast
+      // Show uploading toast and set loading state
+      setAddingDocument(true);
       const uploadingToast = toast.loading('Uploading document to knowledge base...');
       
       const response = await fetch('/api/ai/documents', {
@@ -191,13 +203,17 @@ export function DocumentsManager() {
       
       // Show different toasts based on Pinecone indexing status
       if (result.pineconeSuccess === false) {
-        toast.success('Document added successfully but not indexed in Pinecone. Vector search may not work for this document.');
+        toast.error('Document added to memory but not indexed in Pinecone. Vector search will not work for this document.');
+        // Check Pinecone status again
+        checkPineconeStatus();
       } else {
         toast.success('Document added successfully and indexed for AI vector search');
       }
     } catch (error) {
       console.error('Error adding document:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to add document');
+    } finally {
+      setAddingDocument(false);
     }
   };
 
@@ -208,6 +224,7 @@ export function DocumentsManager() {
     }
 
     try {
+      setDeletingDocumentId(id);
       const response = await fetch(`/api/ai/documents?id=${id}`, {
         method: 'DELETE',
       });
@@ -228,6 +245,8 @@ export function DocumentsManager() {
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error('Failed to delete document');
+    } finally {
+      setDeletingDocumentId(null);
     }
   };
 
@@ -255,31 +274,52 @@ export function DocumentsManager() {
           {/* Pinecone status indicator */}
           <div className="ml-3 flex items-center">
             <span className="text-xs mr-1">Vector Search:</span>
-            {pineconeStatus === 'loading' && (
+            {pineconeStatus === 'loading' || checkingConnection ? (
               <span className="inline-flex items-center text-xs text-yellow-300">
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 Checking...
               </span>
-            )}
-            {pineconeStatus === 'connected' && (
+            ) : pineconeStatus === 'connected' ? (
               <span className="inline-flex items-center text-xs text-green-300">
                 <div className="h-2 w-2 rounded-full bg-green-500 mr-1"></div>
                 Active
               </span>
-            )}
-            {pineconeStatus === 'disconnected' && (
-              <span className="inline-flex items-center text-xs text-red-300">
-                <div className="h-2 w-2 rounded-full bg-red-500 mr-1"></div>
-                Disabled
-              </span>
+            ) : (
+              <div className="flex items-center">
+                <span className="inline-flex items-center text-xs text-red-300">
+                  <div className="h-2 w-2 rounded-full bg-red-500 mr-1"></div>
+                  Disabled
+                </span>
+                <button 
+                  onClick={checkPineconeStatus} 
+                  className="ml-2 text-xs bg-red-700 hover:bg-red-800 px-2 py-1 rounded flex items-center"
+                  title={pineconeError || 'Click to retry connection'}
+                  disabled={checkingConnection}
+                >
+                  {checkingConnection ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    'Retry'
+                  )}
+                </button>
+              </div>
             )}
           </div>
+          {pineconeError && (
+            <span className="ml-2 text-xs text-red-300" title={pineconeError}>
+              Error
+            </span>
+          )}
         </div>
         <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
           <DialogTrigger asChild>
             <Button
               variant="ghost"
               className="text-white hover:bg-[#6D1A27]"
+              isLoading={uploadDialogOpen}
             >
               <UploadCloud className="h-4 w-4 mr-2" />
               Add Document
@@ -361,6 +401,8 @@ export function DocumentsManager() {
               <Button 
                 onClick={handleAddDocument}
                 className="bg-[#8B2131] hover:bg-[#6D1A27]"
+                isLoading={addingDocument}
+                loadingText="Adding..."
               >
                 Add Document
               </Button>
@@ -415,6 +457,7 @@ export function DocumentsManager() {
                     size="icon"
                     onClick={() => handleViewDocument(doc)}
                     className="text-gray-500 hover:text-gray-700"
+                    isLoading={selectedDocument?.id === doc.id && viewDialogOpen}
                   >
                     <Search className="h-4 w-4" />
                   </Button>
@@ -423,6 +466,7 @@ export function DocumentsManager() {
                     size="icon"
                     onClick={() => handleDeleteDocument(doc.id)}
                     className="text-gray-500 hover:text-red-500"
+                    isLoading={deletingDocumentId === doc.id}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

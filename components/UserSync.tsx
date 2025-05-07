@@ -1,30 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser, useAuth, useSession } from '@clerk/nextjs';
 import { toast } from 'sonner';
 
 /**
  * This component syncs the Clerk user data to our own database.
  * It should be added to the dashboard layout or any authenticated layout.
+ * Optimized for performance with debouncing and memoization.
  */
 export default function UserSync() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const { session } = useSession();
   const [isSyncing, setIsSyncing] = useState(false);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasSyncedRef = useRef(false);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Only run sync when the user data is loaded and user exists
     if (!isLoaded || !user || !session) {
-      console.log('Waiting for user data to load:', { isLoaded, user, session });
       return;
     }
     
-    // Avoid multiple syncs
-    if (isSyncing) return;
+    // Avoid multiple syncs and only sync once per session
+    if (isSyncing || hasSyncedRef.current) return;
     
-    const syncUser = async () => {
+    // Add a small delay before syncing to avoid blocking UI
+    syncTimeoutRef.current = setTimeout(async () => {
       try {
         setIsSyncing(true);
         
@@ -32,9 +44,6 @@ export default function UserSync() {
         const token = await getToken();
         if (!token) {
           console.error('No authentication token available');
-          toast.error('Authentication Error', {
-            description: 'Please sign in again to continue.',
-          });
           return;
         }
         
@@ -54,6 +63,8 @@ export default function UserSync() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(userData),
+          // Add cache control
+          cache: 'no-store',
         });
 
         // Check if the response is HTML (error page)
@@ -62,20 +73,10 @@ export default function UserSync() {
           throw new Error('Server returned an error page. Please try again later.');
         }
         
-        // Handle unauthorized response
+        // Handle unauthorized response quietly
         if (response.status === 401) {
           const authMessage = response.headers.get('x-clerk-auth-message');
           console.error('Unauthorized access:', authMessage);
-          
-          if (authMessage?.includes('JWT issued at date claim (iat) is in the future')) {
-            toast.error('Time Synchronization Error', {
-              description: 'Your system clock is out of sync. Please check your system time and try again.',
-            });
-          } else {
-            toast.error('Authentication Error', {
-              description: 'Your session has expired. Please sign in again.',
-            });
-          }
           return;
         }
         
@@ -93,34 +94,22 @@ export default function UserSync() {
           throw new Error(errorMessage);
         }
         
-        // If response is ok, try to parse the success response
-        try {
-          const data = await response.json();
-          if (data.success) {
-            console.log('User data synced successfully');
-          } else {
-            throw new Error(data.error || 'Failed to sync user');
-          }
-        } catch {
-          throw new Error('Failed to parse server response');
-        }
+        // If response is ok, mark as synced
+        hasSyncedRef.current = true;
+        console.log('User data synced successfully');
+        
       } catch (error) {
         console.error('Error syncing user data:', error);
-        let message = 'Failed to sync user data';
-        
-        if (error instanceof Error) {
-          message = error.message;
+        // Only show errors in development
+        if (process.env.NODE_ENV === 'development') {
+          toast.error('User Sync Error', {
+            description: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
-        
-        toast.error('User Sync Error', {
-          description: message,
-        });
       } finally {
         setIsSyncing(false);
       }
-    };
-
-    syncUser();
+    }, 500); // Small delay to avoid blocking UI
   }, [isLoaded, user, isSyncing, getToken, session]);
 
   // This is a background process - doesn't render anything

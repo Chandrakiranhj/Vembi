@@ -17,23 +17,41 @@ export async function GET(req: NextRequest) {
   const prismaWithModels = prisma as PrismaClientWithLowercaseModels;
   
   try {
-    // Get current authenticated user from Clerk
+    // Attempt to get auth user from Clerk with better error handling
+    console.log("Force-create: Starting user creation process");
+    
     const clerkUser = await currentUser();
     
     if (!clerkUser) {
-      console.error("No authenticated user found");
-      return NextResponse.redirect(new URL('/sign-in', req.url));
+      console.error("Force-create: No authenticated user found from Clerk");
+      const redirectUrl = new URL('/sign-in', req.url);
+      return NextResponse.redirect(redirectUrl, {
+        status: 302,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+        },
+      });
     }
     
     const userId = clerkUser.id;
     const email = clerkUser.emailAddresses[0]?.emailAddress;
     
+    console.log(`Force-create: Processing user ${userId} with email ${email || 'unknown'}`);
+    
     if (!email) {
-      console.error(`No email found for Clerk user ${userId}`);
-      return NextResponse.redirect(new URL('/auth-error?reason=missingEmail', req.url));
+      console.error(`Force-create: No email found for Clerk user ${userId}`);
+      const redirectUrl = new URL('/auth-error?reason=missingEmail', req.url);
+      return NextResponse.redirect(redirectUrl, {
+        status: 302,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+        },
+      });
     }
     
-    console.log(`Force creating or checking user for: ${email} (${userId})`);
+    console.log(`Force-create: Creating or checking user for: ${email} (${userId})`);
     
     try {
       // Check if user already exists in database
@@ -48,15 +66,23 @@ export async function GET(req: NextRequest) {
       
       if (existingUser) {
         // User already exists, redirect based on role
-        console.log(`User already exists with role: ${existingUser.role}`);
-        if (existingUser.role === 'PENDING_APPROVAL') {
-          return NextResponse.redirect(new URL('/pending-approval', req.url));
-        } else {
-          return NextResponse.redirect(new URL('/dashboard', req.url));
-        }
+        console.log(`Force-create: User already exists with role: ${existingUser.role}`);
+        
+        const targetPath = existingUser.role === 'PENDING_APPROVAL' ? '/pending-approval' : '/dashboard';
+        console.log(`Force-create: Redirecting existing user to ${targetPath}`);
+        
+        const redirectUrl = new URL(targetPath, req.url);
+        return NextResponse.redirect(redirectUrl, {
+          status: 302,
+          headers: {
+            'Cache-Control': 'no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+          },
+        });
       }
       
       // Create new user
+      console.log(`Force-create: Creating new user for ${email}`);
       const isAdminEmail = email === 'chandrakiranhj@gmail.com';
       
       const newUser = await prismaWithModels.user.create({
@@ -69,20 +95,70 @@ export async function GET(req: NextRequest) {
         }
       });
       
-      console.log(`User created successfully: ${newUser.email} (${newUser.role})`);
+      console.log(`Force-create: User created successfully: ${newUser.email} (${newUser.role})`);
       
-      // Redirect to appropriate page
-      return NextResponse.redirect(
-        new URL(isAdminEmail ? '/dashboard' : '/pending-approval', req.url)
-      );
+      // Send admin notification for new user (done in webhook, but as a backup)
+      if (newUser.role === 'PENDING_APPROVAL') {
+        try {
+          console.log(`Force-create: Attempting to send admin notification`);
+          const notificationUrl = new URL('/api/notifications/admin', req.url);
+          const notificationResponse = await fetch(notificationUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: newUser.id,
+              userName: newUser.name,
+              userEmail: newUser.email
+            }),
+          });
+          
+          if (notificationResponse.ok) {
+            console.log('Force-create: Admin notification sent successfully');
+          } else {
+            console.warn('Force-create: Failed to send admin notification:', await notificationResponse.text());
+          }
+        } catch (notifyError) {
+          console.error('Force-create: Error sending admin notification:', notifyError);
+          // Continue with the user creation process even if notification fails
+        }
+      }
+      
+      // Redirect to appropriate page with cache control headers to prevent caching
+      const targetPath = isAdminEmail ? '/dashboard' : '/pending-approval';
+      console.log(`Force-create: Redirecting new user to ${targetPath}`);
+      
+      const redirectUrl = new URL(targetPath, req.url);
+      return NextResponse.redirect(redirectUrl, {
+        status: 302,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+        },
+      });
     } catch (dbError: unknown) {
-      console.error('Database error during force-create:', dbError);
+      console.error('Force-create: Database error:', dbError);
       // Return a more specific error for debugging
       const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown DB error';
-      return NextResponse.redirect(new URL(`/auth-error?reason=databaseError&detail=${encodeURIComponent(errorMessage)}`, req.url));
+      const redirectUrl = new URL(`/auth-error?reason=databaseError&detail=${encodeURIComponent(errorMessage)}`, req.url);
+      return NextResponse.redirect(redirectUrl, {
+        status: 302,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+        },
+      });
     }
   } catch (error) {
-    console.error('Error in force-create handler:', error);
-    return NextResponse.redirect(new URL('/auth-error?reason=serverError', req.url));
+    console.error('Force-create: Unexpected error:', error);
+    const redirectUrl = new URL('/auth-error?reason=serverError', req.url);
+    return NextResponse.redirect(redirectUrl, {
+      status: 302,
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+      },
+    });
   }
 } 

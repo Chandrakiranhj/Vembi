@@ -30,12 +30,14 @@ let documents: Document[] = [];
 // Initialize Pinecone client (for vector search)
 let pineconeClient: Pinecone | null = null;
 let googleAI: GoogleGenerativeAI | null = null;
+let pineconeInitialized = false;
+let pineconeInitError: string | null = null;
 
 // Initialize the AI and vector database
 function initializeServices() {
   try {
     // Initialize Google AI for embeddings
-    if (!AI_CONFIG.googleApiKey || AI_CONFIG.googleApiKey === "your_google_api_key") {
+    if (!AI_CONFIG.googleApiKey || AI_CONFIG.googleApiKey === "") {
       console.warn("Google AI API key not configured. Embeddings generation will not be available.");
       return null;
     }
@@ -43,18 +45,42 @@ function initializeServices() {
     googleAI = new GoogleGenerativeAI(AI_CONFIG.googleApiKey);
 
     // Initialize Pinecone
-    if (!AI_CONFIG.pineconeApiKey || AI_CONFIG.pineconeApiKey === "your_pinecone_api_key") {
+    if (!AI_CONFIG.pineconeApiKey || AI_CONFIG.pineconeApiKey === "") {
+      pineconeInitError = "Pinecone API key not configured";
       console.warn("Pinecone API key not configured. Vector search will not be available.");
       return null;
     }
 
+    if (!AI_CONFIG.pineconeEnvironment || AI_CONFIG.pineconeEnvironment === "") {
+      pineconeInitError = "Pinecone environment not configured";
+      console.warn("Pinecone environment not configured. Vector search will not be available.");
+      return null;
+    }
+
+    if (!AI_CONFIG.pineconeIndexName || AI_CONFIG.pineconeIndexName === "") {
+      pineconeInitError = "Pinecone index name not configured";
+      console.warn("Pinecone index name not configured. Vector search will not be available.");
+      return null;
+    }
+
     // Initialize Pinecone client
+    console.log("Initializing Pinecone with:", {
+      apiKey: "REDACTED",
+      environment: AI_CONFIG.pineconeEnvironment,
+      indexName: AI_CONFIG.pineconeIndexName
+    });
+
     pineconeClient = new Pinecone({
       apiKey: AI_CONFIG.pineconeApiKey,
     });
 
+    pineconeInitialized = true;
+    pineconeInitError = null;
+    console.log("Pinecone client initialized successfully");
+    
     return { pineconeClient, googleAI };
   } catch (error) {
+    pineconeInitError = error instanceof Error ? error.message : "Unknown error initializing services";
     console.error('Error initializing services:', error);
     return null;
   }
@@ -84,13 +110,30 @@ async function getPineconeIndex() {
   try {
     if (!pineconeClient) {
       initializeServices();
-      if (!pineconeClient) return null;
+      if (!pineconeClient) {
+        console.warn("Failed to initialize Pinecone client");
+        return null;
+      }
     }
 
     const indexName = AI_CONFIG.pineconeIndexName;
-    return pineconeClient.Index(indexName);
+    console.log(`Getting Pinecone index: ${indexName}`);
+    
+    const index = pineconeClient.Index(indexName);
+    
+    // Verify the index exists by making a simple call
+    try {
+      await index.describeIndexStats();
+      console.log(`Successfully connected to Pinecone index: ${indexName}`);
+      return index;
+    } catch (indexError) {
+      console.error(`Error connecting to Pinecone index ${indexName}:`, indexError);
+      pineconeInitError = `Index error: ${indexError instanceof Error ? indexError.message : "Unknown index error"}`;
+      return null;
+    }
   } catch (error) {
     console.error('Error getting Pinecone index:', error);
+    pineconeInitError = `Error getting index: ${error instanceof Error ? error.message : "Unknown error"}`;
     return null;
   }
 }
@@ -99,11 +142,19 @@ async function getPineconeIndex() {
 async function addDocumentToPinecone(document: Document): Promise<boolean> {
   try {
     const index = await getPineconeIndex();
-    if (!index) return false;
+    if (!index) {
+      console.warn("Cannot add document to Pinecone: index not available");
+      return false;
+    }
 
     // Generate embedding for document
     const embedding = await generateEmbedding(document.title + " " + document.content);
-    if (!embedding) return false;
+    if (!embedding) {
+      console.warn("Cannot add document to Pinecone: failed to generate embedding");
+      return false;
+    }
+
+    console.log(`Generated embedding with ${embedding.length} dimensions for document: ${document.title}`);
 
     // Prepare vector data
     const vectorData: VectorData = {
@@ -118,7 +169,9 @@ async function addDocumentToPinecone(document: Document): Promise<boolean> {
     };
 
     // Upload to Pinecone
+    console.log(`Upserting document to Pinecone: ${document.id}`);
     await index.upsert([vectorData]);
+    console.log(`Document successfully added to Pinecone: ${document.id}`);
     
     return true;
   } catch (error) {
@@ -135,6 +188,7 @@ async function deleteDocumentFromPinecone(documentId: string): Promise<boolean> 
 
     // Delete from Pinecone
     await index.deleteOne(documentId);
+    console.log(`Document successfully deleted from Pinecone: ${documentId}`);
     
     return true;
   } catch (error) {
@@ -168,7 +222,7 @@ export async function addDocument(
     const pineconeSuccess = await addDocumentToPinecone(document);
     
     if (!pineconeSuccess) {
-      console.warn('Document added to memory but not to vector database.');
+      console.warn(`Document added to memory but not to Pinecone. Error: ${pineconeInitError || "Unknown error"}`);
     }
 
     return { document, pineconeSuccess };
@@ -181,11 +235,15 @@ export async function addDocument(
 // Search documents based on a query using vector search
 export async function searchDocuments(query: string): Promise<Document[]> {
   try {
+    console.log(`Searching documents for query: "${query}"`);
+    
     // Try vector search first if available
     const index = await getPineconeIndex();
     const embedding = await generateEmbedding(query);
     
     if (index && embedding) {
+      console.log(`Using vector search with ${embedding.length} dimensions`);
+      
       // Perform vector search
       const searchResults = await index.query({
         vector: embedding,
@@ -194,6 +252,8 @@ export async function searchDocuments(query: string): Promise<Document[]> {
       });
       
       if (searchResults.matches && searchResults.matches.length > 0) {
+        console.log(`Found ${searchResults.matches.length} matches in Pinecone`);
+        
         // Convert Pinecone results to documents
         return searchResults.matches
           .filter(match => match.metadata)
@@ -212,16 +272,25 @@ export async function searchDocuments(query: string): Promise<Document[]> {
               uploadedAt: new Date(), // We don't store this in Pinecone
             };
           });
+      } else {
+        console.log('No matches found in vector search');
+      }
+    } else {
+      console.log(`Falling back to text search. Pinecone available: ${!!index}, Embedding available: ${!!embedding}`);
+      if (pineconeInitError) {
+        console.log(`Pinecone error: ${pineconeInitError}`);
       }
     }
     
     // Fallback to text search if vector search fails or isn't available
     console.log('Using fallback text search');
     const lowercaseQuery = query.toLowerCase();
-    return documents.filter(doc => 
+    const results = documents.filter(doc => 
       doc.title.toLowerCase().includes(lowercaseQuery) || 
       doc.content.toLowerCase().includes(lowercaseQuery)
     );
+    console.log(`Found ${results.length} matches in text search`);
+    return results;
   } catch (error) {
     console.error('Error searching documents:', error);
     // Fallback to text search on error
@@ -256,7 +325,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 // Get all documents
 export function getAllDocuments(): Document[] {
-  return [...documents]; // Return a copy to prevent mutation
+  return documents;
 }
 
 // Get documents by type
@@ -264,25 +333,12 @@ export function getDocumentsByType(type: string): Document[] {
   return documents.filter(doc => doc.type === type);
 }
 
-// Initialize the document store
+// Initialize the document store (load documents from database or storage)
 export function initializeDocumentStore() {
-  // Initialize vector database and AI
+  // In a real application, this would load documents from a database
+  // For now, we'll just initialize the services
   initializeServices();
-  
-  // Add some sample documents for testing
-  if (process.env.NODE_ENV === 'development' && documents.length === 0) {
-    addDocument(
-      'Vembi Product Assembly Guide',
-      'This guide explains how to assemble Vembi products. Start by ensuring all components are available...',
-      'guide'
-    );
-    
-    addDocument(
-      'Quality Control Procedures',
-      'All products must undergo a 5-point inspection process...',
-      'procedure'
-    );
-  }
+  console.log('Document store initialized');
 }
 
 // For production: Implement document chunking, embedding generation, and vector storage
@@ -293,19 +349,34 @@ export async function isPineconeAvailable(): Promise<boolean> {
   try {
     if (!pineconeClient) {
       initializeServices();
-      if (!pineconeClient) return false;
+      if (!pineconeClient) {
+        console.log("Pinecone client not initialized");
+        return false;
+      }
     }
     
     // Attempt to get the index to verify connection
     const index = await getPineconeIndex();
-    if (!index) return false;
+    if (!index) {
+      console.log("Pinecone index not available");
+      return false;
+    }
     
     // Try a simple operation to ensure we can connect
     await index.describeIndexStats();
+    console.log("Pinecone is available and connected");
     
     return true;
   } catch (error) {
     console.error('Error checking Pinecone availability:', error);
     return false;
   }
+}
+
+// Get Pinecone initialization status
+export function getPineconeStatus(): { initialized: boolean; error: string | null } {
+  return {
+    initialized: pineconeInitialized,
+    error: pineconeInitError
+  };
 } 

@@ -246,8 +246,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium text-[#F5F1E4] hover:bg-[#8B2131]/60 hover:text-white transition-colors duration-150 group
-                      ${item.name === "Users" && pendingUsersCount > 0 ? "bg-[#8B2131]/40" : ""}`}
+                    className="flex items-center px-4 py-3 rounded-lg text-sm font-medium text-[#F5F1E4] hover:bg-[#8B2131]/60 hover:text-white transition-colors duration-150 group"
                   >
                     <span className="p-1.5 rounded-md bg-[#8B2131]/40 mr-3 group-hover:bg-[#8B2131]/70">
                       <item.icon />
@@ -456,11 +455,46 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               }
             }
             
+            // Set active navigation item based on current path
+            function setActiveNavItems() {
+              const currentPath = window.location.pathname;
+              
+              // For both desktop and mobile navs
+              ['nav > ul > li > a', '#mobile-sidebar nav > ul > li > a'].forEach(selector => {
+                const navLinks = document.querySelectorAll(selector);
+                
+                navLinks.forEach(link => {
+                  const href = link.getAttribute('href');
+                  
+                  // Clear any background styling that might be related to notifications
+                  if (link.classList.contains('bg-[#8B2131]/40')) {
+                    link.classList.remove('bg-[#8B2131]/40');
+                  }
+                  
+                  // Set active state
+                  if (href && currentPath.startsWith(href)) {
+                    link.classList.add('bg-[#8B2131]', 'text-white');
+                  } else {
+                    link.classList.remove('bg-[#8B2131]', 'text-white');
+                  }
+                });
+              });
+            }
+            
             // Run setup immediately
             setupMobileMenu();
+            setActiveNavItems();
             
             // Also run on DOMContentLoaded as a fallback
-            document.addEventListener('DOMContentLoaded', setupMobileMenu);
+            document.addEventListener('DOMContentLoaded', () => {
+              setupMobileMenu();
+              setActiveNavItems();
+            });
+            
+            // Update active state on navigation via Next.js
+            if (typeof window !== 'undefined' && window.next) {
+              window.next.router.events.on('routeChangeComplete', setActiveNavItems);
+            }
           })();
         `
       }} />

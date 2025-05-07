@@ -1,3 +1,5 @@
+'use client';
+
 import { SignUp } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -13,11 +15,12 @@ export default function SignUpPage() {
               footerActionLink: 'text-[#8B2131] hover:text-[#6D1A27]'
             }
           }}
+          redirectUrl="/api/auth/force-create"
           afterSignUpUrl="/api/auth/force-create"
         />
       </div>
       
-      {/* Helpful information for users who get stuck */}
+      {/* Help for users who get stuck */}
       <div className="mt-8 text-center max-w-md px-4">
         <p className="text-sm text-gray-500 mb-2">
           Already signed up but not seeing your account?

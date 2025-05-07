@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
 
 interface ReturnFormData {
   serialNumber: string;
@@ -105,15 +104,12 @@ export function ReturnsLog() {
             )}
           </div>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Logging Return...
-              </>
-            ) : (
-              'Log Return'
-            )}
+          <Button 
+            type="submit" 
+            isLoading={isSubmitting}
+            loadingText="Logging Return..."
+          >
+            Log Return
           </Button>
         </form>
       </CardContent>

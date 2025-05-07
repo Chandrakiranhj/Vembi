@@ -4,14 +4,16 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from './providers';
 import { ensureAIInitialized } from "@/lib/ai-initializer";
+import { viewport } from "./viewport";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "VEMBI Inventory QC",
   description: "Inventory and Quality Control Management System",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
 };
+
+export { viewport };
 
 export default function RootLayout({
   children,

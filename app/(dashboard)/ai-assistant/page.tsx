@@ -15,6 +15,18 @@ import {
 
 export default function AIAssistantPage() {
   const [activeTab, setActiveTab] = useState('chat');
+  const [tabLoading, setTabLoading] = useState(false);
+
+  // Handle tab change with loading state
+  const handleTabChange = (value: string) => {
+    setTabLoading(true);
+    setActiveTab(value);
+    
+    // Simulate loading time (remove this in production and use real loading states)
+    setTimeout(() => {
+      setTabLoading(false);
+    }, 500);
+  };
 
   const capabilityCards = [
     {
@@ -62,13 +74,21 @@ export default function AIAssistantPage() {
           </p>
         </div>
         <div className="flex space-x-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid grid-cols-2 w-full max-w-md">
-              <TabsTrigger value="chat" className="flex items-center">
+              <TabsTrigger 
+                value="chat" 
+                className="flex items-center"
+                isLoading={tabLoading && activeTab === 'chat'}
+              >
                 <MessagesSquare className="h-4 w-4 mr-2" />
                 Chat Assistant
               </TabsTrigger>
-              <TabsTrigger value="documents" className="flex items-center">
+              <TabsTrigger 
+                value="documents" 
+                className="flex items-center"
+                isLoading={tabLoading && activeTab === 'documents'}
+              >
                 <FileText className="h-4 w-4 mr-2" />
                 Documents
               </TabsTrigger>

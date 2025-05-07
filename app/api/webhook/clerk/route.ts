@@ -80,6 +80,35 @@ export async function POST(req: NextRequest) {
           });
           
           console.log(`User created: ${emailAddress} (${newUser.role})`);
+          
+          // Send admin notification for new non-admin users
+          if (newUser.role === 'PENDING_APPROVAL') {
+            try {
+              // Call the admin notification API endpoint
+              const notificationUrl = new URL('/api/notifications/admin', req.url);
+              const notificationResponse = await fetch(notificationUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: newUser.id,
+                  userName: newUser.name,
+                  userEmail: newUser.email
+                }),
+              });
+              
+              if (notificationResponse.ok) {
+                console.log('Admin notification sent successfully');
+              } else {
+                console.warn('Failed to send admin notification:', await notificationResponse.text());
+              }
+            } catch (notifyError) {
+              console.error('Error sending admin notification:', notifyError);
+              // Continue with the user creation process even if notification fails
+            }
+          }
+          
           return NextResponse.json({ success: true, user: newUser });
         }
       } catch (dbError) {
@@ -95,7 +124,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
     
   } catch (error) {
-    console.error('Webhook handler error:', error);
+    console.error('Error in webhook handler:', error);
     return NextResponse.json(
       { success: false, error: 'Webhook processing failed' },
       { status: 500 }

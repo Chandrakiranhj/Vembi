@@ -1,11 +1,26 @@
 'use client';
 
+import { useState } from 'react';
 import { ReturnsLog } from '@/components/ReturnsLog';
 import { ReturnsQC } from '@/components/ReturnsQC';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ReturnsPage() {
+  const [activeTab, setActiveTab] = useState('log');
+  const [tabLoading, setTabLoading] = useState(false);
+
+  // Handle tab change with loading state
+  const handleTabChange = (value: string) => {
+    setTabLoading(true);
+    setActiveTab(value);
+    
+    // Simulate loading time (remove this in production and use real loading states)
+    setTimeout(() => {
+      setTabLoading(false);
+    }, 500);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <Card>
@@ -13,10 +28,20 @@ export default function ReturnsPage() {
           <CardTitle className="text-2xl">Returns Quality Control</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="log" className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="log">Log Returns</TabsTrigger>
-              <TabsTrigger value="qc">Quality Control</TabsTrigger>
+              <TabsTrigger 
+                value="log" 
+                isLoading={tabLoading && activeTab === 'log'}
+              >
+                Log Returns
+              </TabsTrigger>
+              <TabsTrigger 
+                value="qc" 
+                isLoading={tabLoading && activeTab === 'qc'}
+              >
+                Quality Control
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="log">
               <ReturnsLog />

@@ -1,14 +1,16 @@
 import { clerkMiddleware as authMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 // Define public routes
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/initializing',
   '/pending-approval',
   '/api/webhook/clerk',
   '/api/auth/clerk-redirect',
+  '/api/auth/force-create',
+  '/api/notifications/admin',
   '/api/health',
 ]);
 
@@ -44,6 +46,11 @@ export default authMiddleware(async (auth, req) => {
   
   // For all other routes, require authentication with redirect
   await auth.protect();
+
+  // Add x-pathname header for setting active navigation items in server components
+  const response = NextResponse.next();
+  response.headers.set('x-pathname', req.nextUrl.pathname);
+  return response;
 });
 
 // Updated matcher configuration to include all routes except static files

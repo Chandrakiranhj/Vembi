@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { isPineconeAvailable } from '@/lib/ai-document-store';
+import { isPineconeAvailable, getPineconeStatus } from '@/lib/ai-document-store';
 import { areAIConfigKeysSet } from '@/lib/ai-config';
 
 export async function GET(req: NextRequest) {
@@ -21,11 +21,18 @@ export async function GET(req: NextRequest) {
     
     // Check Pinecone availability
     const pineconeAvailable = await isPineconeAvailable();
+    
+    // Get detailed Pinecone status
+    const pineconeStatus = getPineconeStatus();
 
     // Return status information
     return NextResponse.json({
       configKeysSet,
       pinecone: pineconeAvailable,
+      pineconeStatus: {
+        initialized: pineconeStatus.initialized,
+        error: pineconeStatus.error
+      },
       success: true
     });
   } catch (error) {
