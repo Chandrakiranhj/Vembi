@@ -69,35 +69,59 @@ export async function approveUserRole(userId: string, role: Role): Promise<{ suc
  * @param formData - The form data containing the userId.
  * @returns Promise<void> - Adjusted return type for form action compatibility.
  */
-export async function rejectUser(formData: FormData): Promise<void> { // Changed return type
+export async function rejectUser(formData: FormData): Promise<void> {
   const authData = await auth();
   const adminClerkId = authData.userId;
+  
+  // Validate admin permissions
   if (!adminClerkId) { 
     console.error("Unauthorized attempt to reject user."); 
-    // Throw error or handle appropriately
-    throw new Error("Unauthorized"); 
+    throw new Error("Unauthorized: No logged-in user."); 
   }
-  const adminUser = await prisma.user.findFirst({ where: { userId: adminClerkId }});
+  
+  const adminUser = await prisma.user.findFirst({ 
+    where: { userId: adminClerkId },
+    select: { role: true }
+  });
+  
   if (adminUser?.role !== Role.ADMIN) {
     console.error("Forbidden attempt to reject user.");
-    // Throw error or handle appropriately
-    throw new Error("Forbidden");
+    throw new Error("Forbidden: Only admins can reject users.");
   }
 
+  // Get and validate userId
   const userId = formData.get('userId') as string;
   if (!userId) {
     console.error('User ID missing in reject form data.');
-    // Throw error or handle appropriately
     throw new Error('User ID missing.');
   }
 
   try {
-    await prisma.user.delete({ where: { id: userId } });
+    // First check that the user exists
+    const userToReject = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true }
+    });
+
+    if (!userToReject) {
+      throw new Error('User not found.');
+    }
+
+    // Extra validation: ensure we're rejecting a pending user
+    if (userToReject.role !== Role.PENDING_APPROVAL) {
+      console.warn(`Attempted to reject user with non-pending role: ${userToReject.role}`);
+    }
+
+    // Delete the user from the database
+    await prisma.user.delete({ 
+      where: { id: userId } 
+    });
+    
+    // Refresh the users page
     revalidatePath('/users');
-    // No return value needed
   } catch (error) {
     console.error("Error rejecting user:", error);
-    // Re-throw the error so it can potentially be caught by form state hooks if used later
+    // Re-throw the error so it can be caught by the client
     throw new Error(error instanceof Error ? error.message : 'Failed to reject user.');
   }
 }

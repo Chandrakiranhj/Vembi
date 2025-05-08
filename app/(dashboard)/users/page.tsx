@@ -19,8 +19,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ApproveUserDialog } from './_components/ApproveUserDialog';
 import { EditUserNameDialog } from './_components/EditUserNameDialog';
 import { DeleteUserDialog } from './_components/DeleteUserDialog';
+import { RejectUserDialog } from './_components/RejectUserDialog';
 // Import server actions
-import { rejectUser, updateUserRole } from './_components/_actions/userActions'; // Import both actions
+import { updateUserRole } from './_components/_actions/userActions'; // Remove rejectUser as it's used in the dialog now
 
 // Define user interface based on the API response
 interface User {
@@ -199,11 +200,8 @@ export default async function UsersPage() {
                           {/* Approve Button - Will trigger a dialog/modal */} 
                           <ApproveUserDialog userId={user.id} userName={user.name} />
                           
-                          {/* Reject Button - Pass action directly */} 
-                          <form action={rejectUser} className="inline-block"> 
-                             <input type="hidden" name="userId" value={user.id} />
-                             <Button type="submit" variant="destructive" size="sm">Reject</Button>
-                          </form>
+                          {/* Replace direct form with RejectUserDialog */} 
+                          <RejectUserDialog userId={user.id} userName={user.name} />
                         </div>
                       </td>
                     </tr>
