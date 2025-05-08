@@ -4,6 +4,7 @@ import { useState } from "react";
 import { RefreshCw, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface StatusButtonsProps {
   userId: string | null;
@@ -11,18 +12,34 @@ interface StatusButtonsProps {
 
 export default function StatusButtons({ userId }: StatusButtonsProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const router = useRouter();
   
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     // Prevent multiple rapid clicks
     if (isRefreshing) return;
     
     setIsRefreshing(true);
     
-    // Refresh the page and provide user feedback
-    window.location.reload();
-    
-    // This timeout isn't needed as page will reload, but added as a fallback
-    setTimeout(() => setIsRefreshing(false), 1000);
+    try {
+      // Check user status with the API
+      const response = await fetch('/api/auth/clerk-redirect');
+      
+      // If the response was redirected to dashboard, user is approved
+      // We'll follow the redirection
+      if (response.redirected && response.url.includes('/dashboard')) {
+        router.push('/dashboard');
+      } else {
+        // If not approved yet, just refresh the page
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error checking status:", error);
+      // On error, just refresh the page
+      window.location.reload();
+    } finally {
+      // This timeout isn't needed as page will reload or redirect, but added as a fallback
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
   };
 
   return (
