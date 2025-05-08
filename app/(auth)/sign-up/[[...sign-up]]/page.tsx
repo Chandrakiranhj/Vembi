@@ -19,18 +19,6 @@ export default function SignUpPage() {
           afterSignUpUrl="/api/auth/force-create"
         />
       </div>
-      
-      {/* Help for users who get stuck */}
-      <div className="mt-8 text-center max-w-md px-4">
-        <p className="text-sm text-gray-500 mb-2">
-          Already signed up but not seeing your account?
-        </p>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/api/auth/force-create">
-            Go to Account Setup
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 } 
