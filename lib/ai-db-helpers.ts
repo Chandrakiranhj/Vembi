@@ -51,22 +51,52 @@ export async function getProductsWithBOM() {
       include: {
         bomComponents: {
           include: {
-            component: true,
+            component: {
+              include: {
+                stockBatches: true,
+              },
+            },
           },
         },
       },
     });
 
-    return products.map(product => ({
-      id: product.id,
-      name: product.name,
-      modelNumber: product.modelNumber,
-      components: product.bomComponents.map(entry => ({
-        id: entry.componentId,
-        name: entry.component.name,
-        quantityRequired: entry.quantityRequired,
-      })),
-    }));
+    return products.map(product => {
+      // Calculate the number of units that can be produced
+      const componentCapacities = product.bomComponents.map(entry => {
+        const totalStock = entry.component.stockBatches.reduce(
+          (sum, batch) => sum + batch.currentQuantity, 
+          0
+        );
+        return Math.floor(totalStock / entry.quantityRequired);
+      });
+      
+      // Maximum production is limited by the least available component
+      const maxProduction = componentCapacities.length > 0 
+        ? Math.min(...componentCapacities) 
+        : 0;
+      
+      return {
+        id: product.id,
+        name: product.name,
+        modelNumber: product.modelNumber,
+        maxProduction,
+        components: product.bomComponents.map((entry, index) => {
+          const totalStock = entry.component.stockBatches.reduce(
+            (sum, batch) => sum + batch.currentQuantity, 
+            0
+          );
+          
+          return {
+            id: entry.componentId,
+            name: entry.component.name,
+            quantityRequired: entry.quantityRequired,
+            availableStock: totalStock,
+            canProduce: componentCapacities[index],
+          };
+        }),
+      };
+    });
   } catch (error) {
     console.error('Error fetching products with BOM:', error);
     throw new Error('Failed to retrieve product data');
@@ -112,7 +142,7 @@ export async function getMaxProductionCapacity(productId?: string) {
 
       // List limiting components (those that would be depleted first)
       const limitingComponents = product.bomComponents
-        .filter((entry, index) => componentCapacities[index] === maxProduction)
+        .filter((entry, index) => componentCapacities[index] === maxProduction && maxProduction > 0)
         .map(entry => ({
           name: entry.component.name,
           stock: entry.component.stockBatches.reduce(

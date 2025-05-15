@@ -107,36 +107,61 @@ export async function generateResponse(
 // Helper function to get relevant inventory data based on the question
 async function getRelevantInventoryData(question: string): Promise<string | null> {
   try {
-    // BOM structure and assembly pattern questions
-    if (question.includes('bom') || question.includes('bill of materials') ||
-        question.includes('assembly structure') || question.includes('product structure') ||
-        question.includes('how products are made') || question.includes('how assemblies are made') ||
-        (question.includes('assemblies') && question.includes('made'))) {
-      
-      const productsData = await dbHelpers.getProductsWithBOM();
-      return JSON.stringify(productsData, null, 2);
+    // Extract specific product name if mentioned (do this first to catch all product references)
+    const productNamePatterns = [
+      /(\w+|\w+\s\w+|[^?]+?) production/i,
+      /produce (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+      /(\w+|\w+\s\w+|[^?]+?) with current inventory/i,
+      /make (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+      /assemble (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+      /build (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+      /produce (\d+|\d+\s+)(\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+      /(\d+|\d+\s+)(\w+|\w+\s\w+|[^?]+?) with/i
+    ];
+    
+    let productName = null;
+    for (const pattern of productNamePatterns) {
+      const match = question.match(pattern);
+      if (match) {
+        // For patterns that match numbers + product name (e.g., "30 Hexis")
+        if (match[2] && /^\d+$/.test(match[1].trim())) {
+          productName = match[2].trim();
+        } else {
+          productName = match[1].trim();
+        }
+        break;
+      }
+    }
+    
+    // Clean up product name if it has trailing punctuation
+    if (productName) {
+      productName = productName.replace(/[\?\.,;:]$/, '').trim();
     }
 
-    // Production capacity questions
-    if (question.includes('how many') && 
-        (question.includes('produce') || question.includes('production') || question.includes('make')) && 
-        question.includes('current inventory')) {
+    // Production capacity questions (detect if a specific production question was asked)
+    if ((question.includes('how many') || question.includes('maximum') || question.includes('capacity') || 
+         question.includes('can i produce') || question.includes('can we produce') || question.includes('possible to produce')) && 
+        (question.includes('produce') || question.includes('production') || question.includes('make') || 
+         question.includes('assemble') || question.includes('build')) || 
+        (productName && (question.includes('inventory') || question.includes('stock') || question.includes('available')))) {
       
-      // Extract product name if mentioned
-      const productMatches = question.match(/how many (\w+|\w+\s\w+) can/i);
-      const productName = productMatches ? productMatches[1] : null;
-      
-      // Get production capacity data
+      // Get production capacity data for all products
       const capacityData = await dbHelpers.getMaxProductionCapacity();
       
       if (productName) {
+        console.log(`Looking for production capacity for product: "${productName}"`);
+        
         // Filter by product name if mentioned
         const matchedProduct = capacityData.find(p => 
-          p.name.toLowerCase().includes(productName.toLowerCase())
+          p.name.toLowerCase().includes(productName.toLowerCase()) ||
+          p.modelNumber.toLowerCase().includes(productName.toLowerCase())
         );
         
         if (matchedProduct) {
+          console.log(`Found product match: ${matchedProduct.name}`);
           return JSON.stringify(matchedProduct, null, 2);
+        } else {
+          console.log(`No product match found for: ${productName}`);
         }
       }
       
@@ -144,11 +169,53 @@ async function getRelevantInventoryData(question: string): Promise<string | null
       return JSON.stringify(capacityData, null, 2);
     }
     
+    // BOM structure and assembly pattern questions
+    if (question.includes('bom') || question.includes('bill of materials') ||
+        question.includes('assembly structure') || question.includes('product structure') ||
+        question.includes('how products are made') || question.includes('how assemblies are made') ||
+        (question.includes('assemblies') && question.includes('made'))) {
+      
+      const productsData = await dbHelpers.getProductsWithBOM();
+      
+      // If a product name was detected, filter for that specific product
+      if (productName) {
+        const matchedProduct = productsData.find(p => 
+          p.name.toLowerCase().includes(productName.toLowerCase()) ||
+          p.modelNumber.toLowerCase().includes(productName.toLowerCase())
+        );
+        
+        if (matchedProduct) {
+          return JSON.stringify(matchedProduct, null, 2);
+        }
+      }
+      
+      return JSON.stringify(productsData, null, 2);
+    }
+
     // Component inventory questions
     if ((question.includes('inventory') || question.includes('stock')) && 
         question.includes('component')) {
       
+      // Extract component name if mentioned
+      const componentMatches = question.match(/component[s]? (\w+|\w+\s\w+|[^?]+?)[ \?]/i) ||
+                              question.match(/(\w+|\w+\s\w+|[^?]+?) component[s]?/i);
+      
+      const componentName = componentMatches ? componentMatches[1].trim() : null;
+      
       const inventoryData = await dbHelpers.getInventorySummary();
+      
+      if (componentName) {
+        // Filter by component name if mentioned
+        const filteredData = inventoryData.filter(c => 
+          c.name.toLowerCase().includes(componentName.toLowerCase()) || 
+          c.sku.toLowerCase().includes(componentName.toLowerCase())
+        );
+        
+        if (filteredData.length > 0) {
+          return JSON.stringify(filteredData, null, 2);
+        }
+      }
+      
       return JSON.stringify(inventoryData, null, 2);
     }
     
@@ -156,7 +223,26 @@ async function getRelevantInventoryData(question: string): Promise<string | null
     if (question.includes('bom') || question.includes('bill of materials') || 
         (question.includes('product') && question.includes('component'))) {
       
+      // Extract product name if mentioned
+      const productMatches = question.match(/product[s]? (\w+|\w+\s\w+|[^?]+?)[ \?]/i) ||
+                            question.match(/(\w+|\w+\s\w+|[^?]+?) product[s]?/i);
+      
+      const productName = productMatches ? productMatches[1].trim() : null;
+      
       const productsData = await dbHelpers.getProductsWithBOM();
+      
+      if (productName) {
+        // Filter by product name if mentioned
+        const matchedProduct = productsData.find(p => 
+          p.name.toLowerCase().includes(productName.toLowerCase()) ||
+          p.modelNumber.toLowerCase().includes(productName.toLowerCase())
+        );
+        
+        if (matchedProduct) {
+          return JSON.stringify(matchedProduct, null, 2);
+        }
+      }
+      
       return JSON.stringify(productsData, null, 2);
     }
     
@@ -174,10 +260,30 @@ async function getRelevantInventoryData(question: string): Promise<string | null
       return JSON.stringify(defectData, null, 2);
     }
     
+    // Low stock questions
+    if (question.includes('low stock') || question.includes('running low') || 
+        question.includes('stock alert') || question.includes('reorder')) {
+      
+      const inventoryData = await dbHelpers.getInventorySummary();
+      const lowStockItems = inventoryData.filter(item => item.isLowStock);
+      
+      if (lowStockItems.length > 0) {
+        return JSON.stringify(lowStockItems, null, 2);
+      }
+      
+      return JSON.stringify({message: "No components are currently low on stock."}, null, 2);
+    }
+    
     // For general inventory questions, return summary data
     if (question.includes('inventory') || question.includes('stock')) {
       const inventoryData = await dbHelpers.getInventorySummary();
       return JSON.stringify(inventoryData, null, 2);
+    }
+    
+    // For general product questions
+    if (question.includes('product') || question.includes('model')) {
+      const productsData = await dbHelpers.getProductsWithBOM();
+      return JSON.stringify(productsData, null, 2);
     }
     
     // If no specific data type is identified, return null

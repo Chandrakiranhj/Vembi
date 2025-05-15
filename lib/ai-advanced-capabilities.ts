@@ -1,5 +1,6 @@
 import { ChatMessage } from './ai-service';
-import * as dbHelpers from './ai-db-helpers';
+// Import dbHelpers only if needed for specific functionality
+// import * as dbHelpers from './ai-db-helpers';
 import { searchDocuments } from './ai-document-store';
 
 /**
@@ -16,11 +17,13 @@ export async function detectUserIntent(message: string): Promise<string> {
     inventoryQuery: /stock|inventory|available|how many|quantity|level/i,
     bomQuery: /bom|bill of materials|component requirement|recipe/i,
     navigationHelp: /how (to|do I) (navigate|find|access|get to)/i,
-    productionCapacity: /capacity|produce|make|build|assemble/i,
+    productionCapacity: /capacity|produce|make|build|assemble|many products/i,
     defectQuery: /defect|quality|issue|problem|failure/i,
     documentSearch: /document|guide|manual|instruction|procedure/i,
     returnProcess: /return|repair|fix|broken|damaged/i,
-    userHelp: /help|assistance|support|confused|lost/i
+    userHelp: /help|assistance|support|confused|lost/i,
+    productQuery: /product|model/i,
+    lowStockQuery: /low stock|running low|reorder|alert/i
   };
   
   // Match message against intent patterns
@@ -62,9 +65,12 @@ export async function generateContextualHelp(intent: string): Promise<string | n
 }
 
 // Analyze inventory trends based on historical data
-export async function analyzeInventoryTrends(_componentId: string): Promise<string> {
+export async function analyzeInventoryTrends(componentId: string): Promise<string> {
   try {
-    // This would connect to the database to get historical inventory data
+    // This would connect to the database to get historical data for the specific component
+    // Use the componentId to fetch real data from the database
+    console.log(`Analyzing trends for component: ${componentId}`);
+    
     // For now, we'll return a placeholder response
     return `
       Based on historical data for this component:
@@ -174,25 +180,136 @@ export async function enhanceResponseContext(messages: ChatMessage[]): Promise<C
       });
     }
     
-    // For inventory queries, add trend analysis
-    if (intent === 'inventoryQuery') {
-      // This is a placeholder - in a real implementation, we would extract 
-      // the actual component ID from the user's message
-      const trendAnalysis = await analyzeInventoryTrends('C1001');
+    // For production capacity queries, add more context about BOM and calculations
+    if (intent === 'productionCapacity') {
+      // Try to extract product name from query using more comprehensive patterns
+      const productNamePatterns = [
+        /how many (\w+|\w+\s\w+|[^?]+?) can/i,
+        /capacity for (\w+|\w+\s\w+|[^?]+?)[^a-zA-Z]/i,
+        /produce (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+        /(\w+|\w+\s\w+|[^?]+?) production/i,
+        /(\w+|\w+\s\w+|[^?]+?) with current inventory/i,
+        /make (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+        /assemble (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+        /build (\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+        /produce (\d+|\d+\s+)(\w+|\w+\s\w+|[^?]+?)[ \?\.,]/i,
+        /(\d+|\d+\s+)(\w+|\w+\s\w+|[^?]+?) with/i
+      ];
+      
+      let productName = null;
+      for (const pattern of productNamePatterns) {
+        const match = lastUserMessage.content.match(pattern);
+        if (match) {
+          // For patterns that match numbers + product name (e.g., "30 Hexis")
+          if (match[2] && /^\d+$/.test(match[1].trim())) {
+            productName = match[2].trim();
+          } else {
+            productName = match[1].trim();
+          }
+          break;
+        }
+      }
+      
+      // Clean up product name if it has trailing punctuation
+      if (productName) {
+        productName = productName.replace(/[\?\.,;:]$/, '').trim();
+      }
+      
+      let productionContext = "When calculating production capacity, consider:\n";
+      productionContext += "1. Each product has specific component requirements defined in its BOM\n";
+      productionContext += "2. Each component has a current available stock\n";
+      productionContext += "3. For each component, divide its available stock by its quantity required per product\n";
+      productionContext += "4. The component that allows for the least number of products is the limiting factor\n";
+      productionContext += "5. The maximum production capacity is determined by this limiting component\n";
+      
+      if (productName) {
+        productionContext += `\nThe user is asking about the product "${productName}". Focus your response on this specific product's production capacity.`;
+      }
       
       enhancedMessages.splice(enhancedMessages.length - 1, 0, {
         role: 'system',
-        content: `Inventory trend analysis: ${trendAnalysis}`
+        content: `Production capacity context: ${productionContext}`
       });
-    }
-    
-    // For production queries, add bottleneck prediction
-    if (intent === 'productionCapacity') {
-      const bottleneckPrediction = await predictBottlenecks();
       
+      // Add bottleneck prediction
+      const bottleneckPrediction = await predictBottlenecks();
       enhancedMessages.splice(enhancedMessages.length - 1, 0, {
         role: 'system',
         content: `Production bottleneck analysis: ${bottleneckPrediction}`
+      });
+      
+      // Add clear guidance for interpreting the data
+      enhancedMessages.splice(enhancedMessages.length - 1, 0, {
+        role: 'system',
+        content: `When you receive production capacity data in JSON format, look for:
+1. The "maxProduction" field which tells you exactly how many units can be produced
+2. The "limitingComponents" array which shows which components are constraining production
+3. The "componentCapacities" array which shows how many units each component allows for
+
+If asked about a specific number (like "can I produce 30 units?"), compare that number with maxProduction to give a clear yes/no answer.`
+      });
+    }
+    
+    // For BOM queries, add context about BOM structure
+    if (intent === 'bomQuery') {
+      let bomContext = "BOM (Bill of Materials) Structure:\n";
+      bomContext += "1. Each product has a list of required components\n";
+      bomContext += "2. Each component has a specified quantity needed for assembly\n";
+      bomContext += "3. The BOM determines how many units can be produced with available inventory\n";
+      bomContext += "4. Components can be shared across multiple product BOMs\n";
+      
+      enhancedMessages.splice(enhancedMessages.length - 1, 0, {
+        role: 'system',
+        content: `BOM context: ${bomContext}`
+      });
+    }
+    
+    // For inventory queries, add trend analysis and low stock information
+    if (intent === 'inventoryQuery' || intent === 'lowStockQuery') {
+      // Try to extract component name from query
+      const componentMatches = lastUserMessage.content.match(/component[s]? (\w+|\w+\s\w+|[^?]+?)[ \?]/i) ||
+                              lastUserMessage.content.match(/(\w+|\w+\s\w+|[^?]+?) component[s]?/i);
+      
+      const componentName = componentMatches ? componentMatches[1].trim() : null;
+      
+      if (componentName) {
+        // Use the component name to get a component ID (simplified here for example)
+        const componentId = `C${componentName.substring(0, 4).toUpperCase()}`;
+        const trendAnalysis = await analyzeInventoryTrends(componentId);
+        
+        enhancedMessages.splice(enhancedMessages.length - 1, 0, {
+          role: 'system',
+          content: `Inventory trend analysis for ${componentName}: ${trendAnalysis}`
+        });
+      } else {
+        // For general inventory queries
+        enhancedMessages.splice(enhancedMessages.length - 1, 0, {
+          role: 'system',
+          content: `Inventory context: When responding about inventory, include information about total quantity, minimum required levels, and low stock alerts. For components that are low on stock, explain how this might impact production capacity.`
+        });
+      }
+    }
+    
+    // For product queries, add context about product structure
+    if (intent === 'productQuery') {
+      // Try to extract product name from query
+      const productMatches = lastUserMessage.content.match(/product[s]? (\w+|\w+\s\w+|[^?]+?)[ \?]/i) ||
+                            lastUserMessage.content.match(/(\w+|\w+\s\w+|[^?]+?) product[s]?/i);
+      
+      const productName = productMatches ? productMatches[1].trim() : null;
+      
+      let productContext = "Product Information Structure:\n";
+      productContext += "1. Each product has a unique model number and name\n";
+      productContext += "2. Products have associated Bill of Materials (BOM) defining required components\n";
+      productContext += "3. Production capacity is calculated based on BOM and available inventory\n";
+      
+      if (productName) {
+        productContext += `\nThe user is asking about the product "${productName}". Focus your response on this specific product.`;
+      }
+      
+      enhancedMessages.splice(enhancedMessages.length - 1, 0, {
+        role: 'system',
+        content: `Product context: ${productContext}`
       });
     }
     
@@ -237,7 +354,7 @@ export async function processUserFeedback(messageId: string, feedback: 'up' | 'd
 }
 
 // Generate personalized responses based on user role and history
-export function personalizeResponse(response: string, userRole: string, _userInteractions: Record<string, unknown>[]): string {
+export function personalizeResponse(response: string, userRole: string, userInteractions: Record<string, unknown>[]): string {
   // This is a placeholder for personalization logic
   // In a real implementation, this would:
   // 1. Adjust response detail based on user role (admin vs. regular user)
@@ -249,9 +366,15 @@ export function personalizeResponse(response: string, userRole: string, _userInt
   
   // Add role-specific information
   if (userRole === 'admin') {
-    personalizedResponse += '\n\nAs an admin, you can also access system configuration options for this feature.';
-  } else if (userRole === 'inventory_manager') {
-    personalizedResponse += '\n\nAs an inventory manager, you can modify stock levels and reorder points.';
+    personalizedResponse += '\n\nAs an administrator, you have access to additional system features.';
+  } else if (userRole === 'assembler') {
+    personalizedResponse += '\n\nNote: Assembly records are automatically tracked in the system.';
+  }
+  
+  // Use interaction history for personalization
+  if (userInteractions.length > 0) {
+    console.log(`Personalizing based on ${userInteractions.length} previous interactions`);
+    // In a real implementation, would analyze interactions and adjust the response
   }
   
   return personalizedResponse;
