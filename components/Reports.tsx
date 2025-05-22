@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -21,30 +21,20 @@ import {
   LineChart,
   Area,
 } from 'recharts';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // Type definitions
-interface DefectTrendDataPoint {
-  date: string;
-  count: number;
-}
-
 interface SeverityDataPoint {
   name: string;
   value: number;
-}
-
-interface ComponentDefectDataPoint {
-  id: string;
-  name: string;
-  count: number;
-}
-
-interface DefectSeverityByCategory {
-  category: string;
-  LOW: number;
-  MEDIUM: number;
-  HIGH: number;
-  CRITICAL: number;
 }
 
 // Analytics tabs
@@ -53,12 +43,68 @@ type AnalyticsTab = 'defects' | 'inventory' | 'vendors' | 'overview';
 // Date range for filtering
 type DateRange = '7d' | '30d' | '90d' | '1y' | 'all';
 
+interface DefectByBatch extends Record<string, unknown> {
+  batchId: string;
+  batchNumber: string;
+  componentName: string;
+  vendorName: string;
+  defectCount: number;
+  inventoryDefectCount: number;
+  returnDefectCount: number;
+  severity: string;
+  date: string;
+}
+
+interface VendorPerformance extends Record<string, unknown> {
+  vendorId: string;
+  vendorName: string;
+  totalComponents: number;
+  totalDefects: number;
+  defectRate: number;
+  averageSeverity: string;
+}
+
+interface AnalyticsData {
+  overview?: {
+    totalDefects: number;
+    defectsTrend: Array<{ date: string; count: number }>;
+    defectsTrendData: Array<{ date: string; count: number }>;
+    defectsBySeverity: Array<{ name: string; value: number }>;
+    inventoryUtilization: number;
+    topVendorRating: {
+      rating: number;
+      name: string;
+    };
+    criticalIssues: number;
+  };
+  defects?: {
+    topDefectsByComponent: Array<{ name: string; count: number }>;
+    defectsBySource: Array<{ name: string; value: number }>;
+    defectsByBatch: DefectByBatch[];
+    defectSeverityByCategory: Array<{ category: string; LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number }>;
+  };
+  inventory?: {
+    totalComponents: number;
+    activeBatches: number;
+    lowStockItems: number;
+    outOfStockItems: number;
+    consumptionRate: Array<{ name: string; rate: number }>;
+    stockHealthByCategory: Array<{ category: string; healthy: number; warning: number; critical: number }>;
+  };
+  vendors?: {
+    componentPerformance: VendorPerformance[];
+    qualityRating: Array<{ name: string; rating: number }>;
+    defectsByVendor: Array<{ name: string; count: number }>;
+    leadTimePerformance: Array<{ name: string; leadTime: number }>;
+  };
+}
+
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
   const [dateRange, setDateRange] = useState<DateRange>('30d');
 
   // Fetch analytics data
-  const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
     queryKey: ['analytics', activeTab, dateRange],
     queryFn: async () => {
       const response = await fetch(`/api/analytics?tab=${activeTab}&range=${dateRange}`);
@@ -85,6 +131,46 @@ export default function Reports() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Update exportToCSV function to handle specific types
+  const exportToCSV = <T extends Record<string, unknown>>(data: T[], filename: string) => {
+    if (!data.length) return;
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => String(row[header])).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Update the vendor rating display to handle number type
+  const formatVendorRating = (rating: number | undefined): string => {
+    if (typeof rating === 'undefined') return '0';
+    return rating.toFixed(1);
+  };
+
+  // Format number with proper type handling
+  const formatNumber = (value: number | undefined): string => {
+    if (typeof value === 'undefined') return '0';
+    return value.toFixed(1);
+  };
+
+  // Add this helper function to safely format values
+  const safeFormatter = (value: unknown): string => {
+    if (typeof value === 'number') {
+      return value.toFixed(1);
+    }
+    return '0.0';
   };
 
   if (analyticsLoading) {
@@ -145,63 +231,65 @@ export default function Reports() {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Key metrics cards */}
+            {/* Total Defects */}
             <Card className="border-none shadow-md bg-gradient-to-br from-[#F5F1E4] to-white overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Total Defects</CardTitle>
-                <CardDescription className="text-xs">From all sources (inventory & returns)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-[#8B2131]">{analyticsData?.overview?.totalDefects || 0}</div>
-                <p className={`text-xs flex items-center mt-1 font-medium ${analyticsData?.overview?.defectsTrend > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {analyticsData?.overview?.defectsTrend > 0 ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
+                <div className="text-3xl font-bold text-[#8B2131]">
+                  {analyticsData?.overview?.totalDefects || 0}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {analyticsData?.overview?.defectsTrend && 
+                   analyticsData.overview.defectsTrend.length > 0 && 
+                   analyticsData.overview.defectsTrend[0].count > 0 ? (
+                    <span className="text-red-500">
+                      ↑ {analyticsData.overview.defectsTrend[0].count}% from last period
+                    </span>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+                    <span className="text-green-500">↓ No new defects</span>
                   )}
-                  {analyticsData?.overview?.defectsTrend > 0 ? '+' : ''}
-                  {analyticsData?.overview?.defectsTrend}% from previous period
-                </p>
+                </div>
               </CardContent>
             </Card>
-            
+
+            {/* Inventory Utilization */}
             <Card className="border-none shadow-md bg-gradient-to-br from-[#F5F1E4] to-white overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Inventory Utilization</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-[#8B2131]">{analyticsData?.overview?.inventoryUtilization || 0}%</div>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">
-                  Based on component usage rates
-                </p>
+                <div className="text-3xl font-bold text-[#8B2131]">
+                  {formatNumber(analyticsData?.overview?.inventoryUtilization)}%
+                </div>
               </CardContent>
             </Card>
-            
+
+            {/* Top Vendor Rating */}
             <Card className="border-none shadow-md bg-gradient-to-br from-[#F5F1E4] to-white overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Top Vendor Rating</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-[#8B2131]">{analyticsData?.overview?.topVendorRating?.rating ? Number(analyticsData.overview.topVendorRating.rating).toFixed(1) : '0'}</div>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">
-                  {analyticsData?.overview?.topVendorRating?.name || 'No data'}
-                </p>
+                <div className="text-3xl font-bold text-[#8B2131]">
+                  {formatVendorRating(analyticsData?.overview?.topVendorRating?.rating)}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {analyticsData?.overview?.topVendorRating?.name || 'No vendor data'}
+                </div>
               </CardContent>
             </Card>
-            
+
+            {/* Critical Issues */}
             <Card className="border-none shadow-md bg-gradient-to-br from-[#F5F1E4] to-white overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-[#8B2131]">{analyticsData?.overview?.criticalIssues || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">
-                  Requires immediate attention
-                </p>
+                <div className="text-3xl font-bold text-[#8B2131]">
+                  {analyticsData?.overview?.criticalIssues || 0}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -231,7 +319,7 @@ export default function Reports() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="date" 
-                        tickFormatter={(value) => formatDate(value)}
+                        tickFormatter={(value) => value ? formatDate(value) : ''}
                         stroke="#94a3b8"
                         fontSize={12}
                       />
@@ -240,7 +328,7 @@ export default function Reports() {
                         fontSize={12}
                       />
                       <Tooltip 
-                        labelFormatter={(value) => formatDate(value)}
+                        labelFormatter={(value) => value ? formatDate(value) : ''}
                         formatter={(value: number) => [value, 'Defects']}
                         contentStyle={{
                           backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -498,6 +586,77 @@ export default function Reports() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Add new Defects by Batch and Vendor section */}
+          <div className="grid grid-cols-1 gap-6">
+            <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-all">
+              <CardHeader className="bg-gradient-to-r from-[#F5F1E4] to-white border-b border-gray-100 pb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800">Defects by Batch and Vendor</CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Detailed analysis of defects by batch number and vendor
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportToCSV(analyticsData?.defects?.defectsByBatch || [], 'defects-by-batch')}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Batch Number</TableHead>
+                        <TableHead>Component</TableHead>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Total Defects</TableHead>
+                        <TableHead>Inventory Defects</TableHead>
+                        <TableHead>Return Defects</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analyticsData?.defects?.defectsByBatch?.map((defect: DefectByBatch) => (
+                        <TableRow key={defect.batchId}>
+                          <TableCell>{defect.batchNumber}</TableCell>
+                          <TableCell>{defect.componentName}</TableCell>
+                          <TableCell>{defect.vendorName}</TableCell>
+                          <TableCell>{defect.defectCount}</TableCell>
+                          <TableCell>{defect.inventoryDefectCount}</TableCell>
+                          <TableCell>{defect.returnDefectCount}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                defect.severity === 'HIGH' || defect.severity === 'CRITICAL' ? 'bg-red-50 text-red-700 border-red-200' :
+                                defect.severity === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}
+                            >
+                              {defect.severity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(defect.date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Component-wise Vendor Performance */}
+            {/* This section has been removed as requested */}
+          </div>
         </TabsContent>
 
         {/* Inventory Health Tab */}
@@ -637,7 +796,15 @@ export default function Reports() {
                         width={90}
                         tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
                       />
-                      <Tooltip formatter={(value) => [`${value.toFixed(1)}/5.0`, 'Rating']} />
+                      <Tooltip 
+                        formatter={(value) => [`${safeFormatter(value)}/5.0`, 'Rating']} 
+                        contentStyle={{
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                        }}
+                      />
                       <Legend />
                       <Bar dataKey="rating" fill="#8B2131" name="Quality Rating (0-5)" />
                     </BarChart>
@@ -646,7 +813,7 @@ export default function Reports() {
               </CardContent>
             </Card>
 
-            {/* Defects by Vendor */}
+            {/* Defects by Vendor - Changed from pie chart to bar chart */}
             <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-all">
               <CardHeader className="bg-gradient-to-r from-[#F5F1E4] to-white border-b border-gray-100 pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-800">Defects by Vendor</CardTitle>
@@ -657,27 +824,49 @@ export default function Reports() {
               <CardContent className="pt-6">
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={analyticsData?.vendors?.defectsByVendor || []}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={(entry) => entry.name.length > 10 ? `${entry.name.substring(0, 10)}...` : entry.name}
-                      >
-                        {analyticsData?.vendors?.defectsByVendor?.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value, name, props) => [`${value} defects`, props.payload.name]} />
-                      <Legend 
-                        formatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                    <BarChart
+                      data={analyticsData?.vendors?.defectsByVendor || []}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorDefectVendor" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#8B2131" stopOpacity={0.8}/>
+                          <stop offset="100%" stopColor="#6D1A27" stopOpacity={0.8}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis 
+                        type="number" 
+                        stroke="#94a3b8" 
+                        fontSize={12}
                       />
-                    </PieChart>
+                      <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        width={90}
+                        tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                        stroke="#94a3b8"
+                        fontSize={12}
+                      />
+                      <Tooltip 
+                        formatter={(value) => [`${value} defects`, 'Total Defects']} 
+                        contentStyle={{
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                        }}
+                        cursor={{ fill: 'rgba(236, 240, 249, 0.5)' }}
+                      />
+                      <Legend iconType="circle" iconSize={8} />
+                      <Bar 
+                        dataKey="count" 
+                        fill="url(#colorDefectVendor)" 
+                        name="Total Defects" 
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>

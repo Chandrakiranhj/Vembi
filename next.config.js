@@ -16,8 +16,18 @@ const nextConfig = {
   },
   swcMinify: true, // Use SWC minifier for better performance
   images: {
-    domains: ['images.clerk.dev'], // Allow Clerk images
+    domains: ['images.clerk.dev', 'vembi.in'], // Allow Clerk images and Vembi domain
     unoptimized: false, // Ensure images are optimized
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.clerk.dev',
+      },
+      {
+        protocol: 'https',
+        hostname: 'vembi.in',
+      },
+    ],
   },
   experimental: {
     typedRoutes: false, // Disable typedRoutes which can cause issues with handler parameter typing

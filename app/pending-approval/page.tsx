@@ -47,6 +47,7 @@ export default async function PendingApprovalPage() {
                 <h3 className="font-medium">Waiting for approval</h3>
                 <p className="text-gray-600 text-sm">
                   Your account is pending approval from an administrator. This usually takes 1-2 business days.
+                  Once approved, please sign out and sign back in to access your account.
                 </p>
               </div>
             </div>

@@ -10,6 +10,9 @@ import {
   ChevronRight, CheckCheck
 } from 'lucide-react';
 
+// Official Vembi logo URL
+const VEMBI_LOGO = "https://vembi.in/wp/wp-content/uploads/2023/11/cropped-cropped-logo-Vembi-scaled-1.jpg";
+
 export default function LandingPage() {
   const router = useRouter();
   const { isLoaded, userId, isSignedIn } = useAuth();
@@ -26,15 +29,15 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-white flex flex-col">
       {/* Modern Navbar */}
-      <header className="py-6 px-4 sm:px-6 lg:px-8 border-b border-slate-100 backdrop-blur-sm bg-white/80 fixed w-full z-50">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#8B2131] to-[#6D1A27] rounded-lg flex items-center justify-center shadow-md text-white font-bold text-xl">
-              V
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              <span className="text-[#8B2131]">VEMBI</span>
-            </h1>
+      <header className="h-32 px-4 sm:px-6 lg:px-8 border-b border-slate-100 backdrop-blur-sm bg-white/80 fixed w-full z-50 flex items-center">
+        <div className="container mx-auto flex justify-between items-center h-full">
+          <div className="flex items-center gap-3 h-full">
+            <img
+              src={VEMBI_LOGO}
+              alt="Vembi Logo"
+              className="max-h-28 w-auto object-contain rounded-lg"
+              style={{ display: 'block' }}
+            />
           </div>
           <div className="hidden md:flex items-center space-x-6">
             <Link href="/sign-in" className="text-sm font-medium text-slate-600 hover:text-[#8B2131] transition-colors">
@@ -321,11 +324,14 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-3 mb-6 md:mb-0">
-              <div className="w-8 h-8 bg-[#8B2131] rounded-md flex items-center justify-center text-white font-bold text-sm">
-                V
+              <div className="w-10 h-10 relative">
+                <img
+                  src={VEMBI_LOGO}
+                  alt="Vembi Logo"
+                  className="w-[80px] h-[80px] object-contain rounded-lg"
+                />
               </div>
               <div>
-                <h4 className="font-semibold text-[#8B2131]">VEMBI</h4>
                 <span className="text-slate-500 text-xs">
                   © {new Date().getFullYear()} VEMBI. All rights reserved.
                 </span>

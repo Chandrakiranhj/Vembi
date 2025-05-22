@@ -24,27 +24,20 @@ export default function NavLink({
   isAdmin = false 
 }: NavLinkProps) {
   const pathname = usePathname() || '';
-  const [currentPath, setCurrentPath] = React.useState('');
   
-  // Update path after hydration to ensure client-side navigation works
-  React.useEffect(() => {
-    setCurrentPath(pathname);
-  }, [pathname]);
-
-  // Use the same path value for both server and client initial render
-  const isActive = React.useMemo(() => {
-    if (currentPath === '') return false;
-    return currentPath === href || currentPath.startsWith(`${href}/`);
-  }, [currentPath, href]);
+  // Calculate active state directly from current pathname without state delay
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link
       href={href}
-      className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium text-[#F5F1E4] transition-colors duration-150 group ${
+      prefetch={true}
+      className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium text-[#F5F1E4] transition-colors ${
         isActive 
           ? 'bg-[#8B2131] text-white' 
           : 'hover:bg-[#8B2131]/60 hover:text-white'
       }`}
+      replace
     >
       <span className={`p-1.5 rounded-md mr-3 ${
         isActive 

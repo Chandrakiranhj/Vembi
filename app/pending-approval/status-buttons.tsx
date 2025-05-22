@@ -1,68 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCw, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface StatusButtonsProps {
   userId: string | null;
 }
 
 export default function StatusButtons({ userId }: StatusButtonsProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const router = useRouter();
-  
-  const handleRefresh = async () => {
-    // Prevent multiple rapid clicks
-    if (isRefreshing) return;
-    
-    setIsRefreshing(true);
-    
-    try {
-      // Check user status with the API
-      const response = await fetch('/api/auth/clerk-redirect');
-      
-      // If the response was redirected to dashboard, user is approved
-      // We'll follow the redirection
-      if (response.redirected && response.url.includes('/dashboard')) {
-        router.push('/dashboard');
-      } else {
-        // If not approved yet, just refresh the page
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error("Error checking status:", error);
-      // On error, just refresh the page
-      window.location.reload();
-    } finally {
-      // This timeout isn't needed as page will reload or redirect, but added as a fallback
-      setTimeout(() => setIsRefreshing(false), 1000);
-    }
-  };
-
   return (
     <div className="space-y-3">
-      <Button 
-        variant="outline" 
-        className="w-full flex items-center justify-center relative" 
-        onClick={handleRefresh}
-        disabled={isRefreshing}
-      >
-        {isRefreshing ? (
-          <>
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> 
-            <span>Refreshing...</span>
-          </>
-        ) : (
-          <>
-            <RefreshCw className="h-4 w-4 mr-2" /> 
-            <span>Check Status</span>
-          </>
-        )}
-      </Button>
-      
       <Button 
         variant="outline" 
         className="w-full flex items-center justify-center"
