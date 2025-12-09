@@ -15,13 +15,9 @@ const nextConfig = {
     } : false,
   },
   images: {
-    domains: ['images.clerk.dev', 'vembi.in', 'fqbtjucnphnhvypdueis.supabase.co'],
+    domains: ['vembi.in', 'fqbtjucnphnhvypdueis.supabase.co'],
     unoptimized: false,
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.clerk.dev',
-      },
       {
         protocol: 'https',
         hostname: 'vembi.in',

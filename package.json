@@ -19,7 +19,6 @@
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.18.1",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@pinecone-database/pinecone": "^5.1.2",
@@ -75,7 +74,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.1",
+    "eslint-config-next": "^15.3.1",
     "prisma": "^6.7.0",
     "ts-node": "^10.9.2",
     "typescript": "^5"
