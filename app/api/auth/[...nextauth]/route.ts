@@ -1,12 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 
-// This is a placeholder NextAuth configuration file
-// since the application primarily uses Clerk for authentication
-// and this file is just to satisfy imports
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [],
+// Define auth options
+export const authOptions: AuthOptions = {
+  providers: [], // Add providers here as needed
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
 
-export { handlers as GET, handlers as POST }; 
+const handler = NextAuth(authOptions);
+
+export { handler as GET, handler as POST };

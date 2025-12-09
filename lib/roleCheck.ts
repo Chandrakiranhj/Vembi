@@ -2,9 +2,9 @@ import { prisma } from './prisma'; // Assuming prisma client is in the same lib 
 import { Role } from '@prisma/client';
 
 /**
- * Checks if a user identified by their Clerk ID has one of the allowed roles.
+ * Checks if a user identified by their ID has one of the allowed roles.
  * 
- * @param userId - The Clerk user ID (can be null if user is not logged in).
+ * @param userId - The user ID (can be null if user is not logged in).
  * @param allowedRoles - An array of Role enum values that are permitted.
  * @returns Promise<boolean> - True if the user has an allowed role, false otherwise.
  */
@@ -15,7 +15,7 @@ export async function checkUserRole(userId: string | null, allowedRoles: Role[])
   }
 
   try {
-    // Fetch the user's role from your database using the Clerk userId
+    // Fetch the user's role from your database using the userId
     const user = await prisma.user.findFirst({
       where: { userId },
       select: { role: true }
@@ -34,4 +34,4 @@ export async function checkUserRole(userId: string | null, allowedRoles: Role[])
     // Default to false in case of error to be safe
     return false;
   }
-} 
+}

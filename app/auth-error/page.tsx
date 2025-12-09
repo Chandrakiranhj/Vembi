@@ -8,10 +8,6 @@ import { Suspense } from "react";
 
 // Error messages based on reason code
 const errorMessages: Record<string, { title: string; description: string }> = {
-  clerkError: {
-    title: "Authentication Service Error",
-    description: "We're having trouble connecting to our authentication service. Please try again later."
-  },
   missingEmail: {
     title: "Email Not Found",
     description: "We couldn't find an email address associated with your account. Please ensure you've verified your email."
@@ -34,9 +30,9 @@ function AuthErrorContent() {
   const searchParams = useSearchParams();
   const reason = searchParams?.get('reason') || 'serverError';
   const detail = searchParams?.get('detail');
-  
+
   const errorInfo = errorMessages[reason] || errorMessages.serverError;
-  
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
@@ -46,27 +42,21 @@ function AuthErrorContent() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 text-center">{errorInfo.title}</h1>
           <p className="mt-2 text-gray-600 text-center">{errorInfo.description}</p>
-          
+
           {detail && (
             <div className="mt-4 bg-gray-50 p-3 rounded-md text-xs text-gray-600 w-full overflow-x-auto">
               <p className="font-mono">{detail}</p>
             </div>
           )}
         </div>
-        
+
         <div className="space-y-3">
           <Button asChild variant="default" className="w-full">
-            <Link href="/api/auth/force-create">
-              Create Account & Continue
+            <Link href="/api/auth/signin">
+              Sign In
             </Link>
           </Button>
-          
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/api/auth/clerk-redirect">
-              Retry Account Setup
-            </Link>
-          </Button>
-          
+
           <div className="pt-2">
             <Button asChild variant="ghost" className="w-full">
               <Link href="/" className="flex items-center justify-center">
@@ -91,4 +81,4 @@ export default function AuthErrorPage() {
       <AuthErrorContent />
     </Suspense>
   );
-} 
+}
