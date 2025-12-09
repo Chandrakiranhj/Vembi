@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
@@ -12,10 +12,17 @@ const ROLES = {
 // PUT: Update the required quantity of a component for a product (Admin Only)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string, componentId: string } } // Changed productId to id
+  { params }: { params: { id: string, componentId: string } }
 ) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_BOM);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: Only admins can modify product components." }, { status: 403 });
@@ -35,7 +42,7 @@ export async function PUT(
     // although findUnique + update is also fine.
     const updateResult = await prisma.productComponent.updateMany({
       where: {
-        productId: params.id, // Changed productId to id
+        productId: params.id,
         componentId: params.componentId,
       },
       data: {
@@ -52,10 +59,10 @@ export async function PUT(
 
     // Fetch the updated record to return it (optional, but good practice)
     const updatedRecord = await prisma.productComponent.findUnique({
-        where: {
-            productId_componentId: { productId: params.id, componentId: params.componentId } // Changed productId to id
-        },
-        include: { component: true }
+      where: {
+        productId_componentId: { productId: params.id, componentId: params.componentId }
+      },
+      include: { component: true }
     });
 
     return NextResponse.json(updatedRecord);
@@ -72,10 +79,17 @@ export async function PUT(
 // DELETE: Remove a component requirement from a product (Admin Only)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string, componentId: string } } // Changed productId to id
+  { params }: { params: { id: string, componentId: string } }
 ) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_BOM);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: Only admins can modify product components." }, { status: 403 });
@@ -84,7 +98,7 @@ export async function DELETE(
     // Use deleteMany for consistency and potentially better performance
     const deleteResult = await prisma.productComponent.deleteMany({
       where: {
-        productId: params.id, // Changed productId to id
+        productId: params.id,
         componentId: params.componentId,
       },
     });
@@ -105,4 +119,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}

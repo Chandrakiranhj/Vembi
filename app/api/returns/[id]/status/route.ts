@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
-import { updateReturnStatus, getReturnById, hasCompletedQC } from "@/lib/mongodb";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { ReturnStatus } from "@prisma/client";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function PATCH(
     // Get and validate the returnId
     const returnId = params.id;
     console.log("Return ID from path:", returnId);
-    
+
     if (!returnId) {
       console.log("Missing return ID in request");
       return NextResponse.json(
@@ -21,9 +22,11 @@ export async function PATCH(
     }
 
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
     console.log("Authenticated user ID:", userId);
-    
+
     if (!userId) {
       console.log("No authenticated user found");
       return NextResponse.json(
@@ -37,15 +40,15 @@ export async function PATCH(
     const { status } = body;
     console.log("Request body:", body);
     console.log("Status to update to:", status);
-    
+
     // Validate the status is valid
-    const validStatuses = ['RECEIVED', 'IN_INSPECTION', 'REPAIRED', 'REPLACED', 'REFUNDED', 'CLOSED', 'RETURNED'];
-    if (!status || !validStatuses.includes(status)) {
+    const validStatuses = Object.values(ReturnStatus);
+    if (!status || !validStatuses.includes(status as ReturnStatus)) {
       console.log("Invalid status provided:", status);
       return NextResponse.json(
-        { 
-          error: "Invalid status", 
-          message: `Status must be one of: ${validStatuses.join(', ')}` 
+        {
+          error: "Invalid status",
+          message: `Status must be one of: ${validStatuses.join(', ')}`
         },
         { status: 400 }
       );
@@ -55,9 +58,11 @@ export async function PATCH(
 
     try {
       // Check if the return exists
-      const returnRecord = await getReturnById(returnId);
+      const returnRecord = await prisma.return.findUnique({
+        where: { id: returnId }
+      });
       console.log("Return record found:", !!returnRecord);
-      
+
       if (!returnRecord) {
         console.log("Return not found with ID:", returnId);
         return NextResponse.json(
@@ -71,15 +76,18 @@ export async function PATCH(
       // Check if the return has completed QC if trying to return to user
       if (status === 'RETURNED') {
         console.log("Checking if QC is completed for return to user operation");
-        const qcCompleted = await hasCompletedQC(returnId);
+        const qcRecord = await prisma.returnQC.findFirst({
+          where: { returnId: returnId, status: "COMPLETED" }
+        });
+        const qcCompleted = !!qcRecord;
         console.log("QC completion check result:", qcCompleted);
-        
+
         if (!qcCompleted) {
           console.log("Attempted to mark as returned without completed QC");
           return NextResponse.json(
-            { 
-              error: "Invalid operation", 
-              message: "Can only mark as returned to user after QC is completed" 
+            {
+              error: "Invalid operation",
+              message: "Can only mark as returned to user after QC is completed"
             },
             { status: 400 }
           );
@@ -88,9 +96,12 @@ export async function PATCH(
 
       // Update the return status
       console.log("All checks passed. Updating return status...");
-      const updatedReturn = await updateReturnStatus(returnId, status);
+      const updatedReturn = await prisma.return.update({
+        where: { id: returnId },
+        data: { status: status as ReturnStatus }
+      });
       console.log("Return updated successfully:", !!updatedReturn);
-      
+
       return NextResponse.json({
         success: true,
         message: `Status updated to ${status}`,
@@ -112,4 +123,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-} 
+}

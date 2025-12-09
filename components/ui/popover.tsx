@@ -11,18 +11,18 @@ interface PopoverProps {
 
 export function Popover({ open, onOpenChange, children }: PopoverProps) {
   const [isOpen, setIsOpen] = React.useState(open || false)
-  
+
   React.useEffect(() => {
     if (open !== undefined) {
       setIsOpen(open)
     }
   }, [open])
-  
+
   const handleOpenChange = (newOpen: boolean) => {
     setIsOpen(newOpen)
     onOpenChange?.(newOpen)
   }
-  
+
   return (
     <div className="relative inline-block">
       {React.Children.map(children, (child) => {
@@ -52,7 +52,7 @@ export function PopoverTrigger({ asChild, children, onClick }: PopoverTriggerPro
   const childElement = asChild ? React.Children.only(children) : (
     <button type="button">{children}</button>
   )
-  
+
   if (React.isValidElement(childElement)) {
     return React.cloneElement(childElement as React.ReactElement<any>, {
       onClick: (e: React.MouseEvent) => {
@@ -61,7 +61,7 @@ export function PopoverTrigger({ asChild, children, onClick }: PopoverTriggerPro
       },
     })
   }
-  
+
   return childElement
 }
 
@@ -77,7 +77,7 @@ export function PopoverContent({ className, align = 'center', children }: Popove
     center: 'left-1/2 -translate-x-1/2',
     end: 'right-0',
   }
-  
+
   return (
     <div
       className={cn(

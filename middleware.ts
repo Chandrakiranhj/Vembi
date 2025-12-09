@@ -1,62 +1,71 @@
-import { clerkMiddleware as authMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-// Define public routes
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/pending-approval',
-  '/api/webhook/clerk',
-  '/api/auth/clerk-redirect',
-  '/api/auth/force-create',
-  '/api/notifications/admin',
-  '/api/health',
-]);
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-// Define API routes that require authentication
-const isApiRoute = createRouteMatcher([
-  '/api/users/sync',
-  '/api/assemblies(.*)',
-  '/api/products(.*)',
-  '/api/batches(.*)',
-  '/api/components(.*)',
-]);
-
-// Improved auth middleware protecting page routes by default
-export default authMiddleware(async (auth, req) => {
-  // Always allow public routes
-  if (isPublicRoute(req)) {
-    return;
-  }
-
-  // For API routes, check authentication but don't redirect
-  if (isApiRoute(req)) {
-    try {
-      // Check if the request is authenticated
-    await auth.protect();
-    } catch (error) {
-      // Log the error for debugging
-      console.error('Authentication error:', error);
-      // Return early for API routes to let them handle the response
-      return;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
     }
-    return;
+  )
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Define protected routes
+  const isProtectedRoute =
+    request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/api/users') ||
+    request.nextUrl.pathname.startsWith('/api/assemblies') ||
+    request.nextUrl.pathname.startsWith('/api/products') ||
+    request.nextUrl.pathname.startsWith('/api/batches') ||
+    request.nextUrl.pathname.startsWith('/api/components')
+
+  if (isProtectedRoute && !user) {
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
-  
-  // For all other routes, require authentication with redirect
-  await auth.protect();
 
-  // Add x-pathname header for setting active navigation items in server components
-  const response = NextResponse.next();
-  response.headers.set('x-pathname', req.nextUrl.pathname);
-  return response;
-});
+  // Allow public access to landing page (root path)
+  // No redirect for '/' if !user
 
-// Updated matcher configuration to include all routes except static files
+  // Add x-pathname header for navigation
+  response.headers.set('x-pathname', request.nextUrl.pathname)
+
+  return response
+}
+
 export const config = {
   matcher: [
-    // Include all routes except static files
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}; 
+}

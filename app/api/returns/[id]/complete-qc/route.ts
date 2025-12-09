@@ -1,72 +1,180 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
-import { completeQC, getReturnById } from "@/lib/mongodb";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+
+interface DefectPayload {
+  componentId: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  notes: string;
+  resolution?: 'NONE' | 'FIX' | 'REPLACE';
+  replacementBatchId?: string;
+}
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log("=== Complete QC API Called ===");
   try {
-    // Get and validate the returnId
     const returnId = params.id;
-    console.log("Return ID from path:", returnId);
-    
+    const body = await req.json();
+    const { defects, passedComponentIds } = body as {
+      defects: DefectPayload[],
+      passedComponentIds: string[]
+    };
+
     if (!returnId) {
-      console.log("Missing return ID in request");
-      return NextResponse.json(
-        { error: "Missing ID", message: "Return ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
 
-    // Verify the request is authenticated
-    const { userId } = getAuth(req);
-    console.log("Authenticated user ID:", userId);
-    
-    if (!userId) {
-      console.log("No authenticated user found");
-      return NextResponse.json(
-        { error: "Unauthorized", message: "Please sign in again" },
-        { status: 401 }
-      );
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if return exists
-    const returnRecord = await getReturnById(returnId);
-    console.log("Return record found:", !!returnRecord);
-    
-    if (!returnRecord) {
-      console.log("Return not found with ID:", returnId);
-      return NextResponse.json(
-        { error: "Return not found", message: "Invalid return ID" },
-        { status: 404 }
-      );
-    }
-
-    console.log("Current return status:", returnRecord.status);
-
-    // Complete the QC
-    const success = await completeQC(returnId);
-    if (!success) {
-      return NextResponse.json(
-        { error: "QC completion failed", message: "Failed to update QC status" },
-        { status: 500 }
-      );
-    }
-    
-    console.log("QC completed successfully");
-    
-    return NextResponse.json({
-      success: true,
-      message: "QC completed successfully"
+    // Get internal user ID
+    const user = await prisma.user.findUnique({
+      where: { userId: authUser.id }
     });
-  } catch (error: Error | unknown) {
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Transaction to update everything
+    await prisma.$transaction(async (tx) => {
+      // 1. Create or Update ReturnQC
+      let qc = await tx.returnQC.findUnique({
+        where: { returnId }
+      });
+
+      if (!qc) {
+        qc = await tx.returnQC.create({
+          data: {
+            returnId,
+            qcById: user.id,
+            status: 'COMPLETED'
+          }
+        });
+      } else {
+        await tx.returnQC.update({
+          where: { id: qc.id },
+          data: {
+            status: 'COMPLETED',
+            qcById: user.id
+          }
+        });
+      }
+
+      // 2. Handle Defects
+      // First, clear existing defects for this QC to avoid duplicates if re-running
+      await tx.returnQCDefect.deleteMany({
+        where: { qcId: qc.id }
+      });
+
+      for (const defect of defects) {
+        // Create defect record with direct field IDs
+        await tx.returnQCDefect.create({
+          data: {
+            qcId: qc.id,
+            componentId: defect.componentId,
+            description: defect.notes,
+            severity: defect.severity,
+            resolution: defect.resolution || 'NONE',
+            replacementBatchId: defect.replacementBatchId,
+            defectType: 'QC_REPORTED',
+            batchId: null
+          }
+        });
+
+        // If replacing, deduct from inventory
+        if (defect.resolution === 'REPLACE' && defect.replacementBatchId) {
+          await tx.stockBatch.update({
+            where: { id: defect.replacementBatchId },
+            data: {
+              currentQuantity: {
+                decrement: 1
+              }
+            }
+          });
+        }
+
+        // Update ReturnComponent status
+        const returnComponent = await tx.returnComponent.findFirst({
+          where: { returnId, componentId: defect.componentId }
+        });
+
+        if (returnComponent) {
+          await tx.returnComponent.update({
+            where: { id: returnComponent.id },
+            data: {
+              defective: true,
+              notes: defect.notes
+            }
+          });
+        } else {
+          await tx.returnComponent.create({
+            data: {
+              returnId,
+              componentId: defect.componentId,
+              defective: true,
+              notes: defect.notes
+            }
+          });
+        }
+      }
+
+      // 3. Handle Passed Components
+      for (const compId of passedComponentIds) {
+        const returnComponent = await tx.returnComponent.findFirst({
+          where: { returnId, componentId: compId }
+        });
+
+        if (returnComponent) {
+          await tx.returnComponent.update({
+            where: { id: returnComponent.id },
+            data: { defective: false, notes: null }
+          });
+        } else {
+          await tx.returnComponent.create({
+            data: {
+              returnId,
+              componentId: compId,
+              defective: false
+            }
+          });
+        }
+      }
+
+      // 4. Update Return Status
+      const hasReplacements = defects.some(d => d.resolution === 'REPLACE');
+      const hasFixes = defects.some(d => d.resolution === 'FIX');
+
+      let newStatus = 'IN_INSPECTION';
+      if (defects.length === 0) {
+        newStatus = 'RETURNED';
+      } else if (hasReplacements) {
+        newStatus = 'REPLACED';
+      } else if (hasFixes) {
+        newStatus = 'REPAIRED';
+      }
+
+      await tx.return.update({
+        where: { id: returnId },
+        data: {
+          // @ts-ignore
+          status: newStatus
+        }
+      });
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
     console.error("Error completing QC:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to complete QC";
     return NextResponse.json(
-      { error: "Internal server error", message: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}

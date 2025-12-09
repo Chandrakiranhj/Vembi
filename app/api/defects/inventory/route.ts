@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 
 // Define allowed roles
-const ALLOWED_ROLES = ["ADMIN", "RETURN_QC", "SERVICE_PERSON"];
+const ALLOWED_ROLES = ["ADMIN", "RETURN_QC", "SERVICE_PERSON", "ASSEMBLER"];
 
 // POST: Create a new defect from inventory
 export async function POST(req: NextRequest) {
   try {
     // Verify authentication
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findFirst({
       where: { userId }
     });
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "User not found", message: "User not found in database" },
@@ -40,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request data
     const { componentId, batchId, severity, description } = await req.json();
-    
+
     // Validate required fields
     if (!componentId || !batchId || !description) {
       return NextResponse.json(
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
     const component = await prisma.component.findUnique({
       where: { id: componentId }
     });
-    
+
     if (!component) {
       return NextResponse.json(
         { error: "Component not found", message: "Invalid component ID" },
@@ -65,12 +68,12 @@ export async function POST(req: NextRequest) {
     // Validate batch exists and belongs to the component
     // @ts-expect-error - Prisma client methods
     const batch = await prisma.stockBatch.findFirst({
-      where: { 
+      where: {
         id: batchId,
         componentId: componentId
       }
     });
-    
+
     if (!batch) {
       return NextResponse.json(
         { error: "Batch not found", message: "Invalid batch ID or batch does not belong to this component" },
@@ -127,4 +130,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

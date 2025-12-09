@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -15,7 +15,14 @@ type Params = { params: { id: string } };
 // GET: Fetch a single product by ID
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await getAuth(request);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view this product." }, { status: 403 });
@@ -45,7 +52,14 @@ export async function GET(request: NextRequest, { params }: Params) {
 // PUT: Update a product by ID
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await getAuth(request);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to update products." }, { status: 403 });
@@ -98,7 +112,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
 // DELETE: Delete a product by ID
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await getAuth(request);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to delete products." }, { status: 403 });
@@ -114,7 +135,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     if (assembliesUsingProduct > 0 || returnsUsingProduct > 0) {
       return NextResponse.json(
-        { 
+        {
           error: "Cannot delete product because it is used in assemblies or returns",
           assembliesCount: assembliesUsingProduct,
           returnsCount: returnsUsingProduct
@@ -135,4 +156,4 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       { status: 500 }
     );
   }
-} 
+}

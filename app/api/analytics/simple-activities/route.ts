@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 
 // Define activity interface
 interface Activity {
@@ -30,9 +30,10 @@ interface ActivityStats {
 export async function GET(req: NextRequest) {
   try {
     // Get authenticated user ID
-    const auth = getAuth(req);
-    const userId = auth.userId;
-    
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     // Extract query parameters
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
-    
+
     // Generate user-specific mock data for this particular user
     const mockActivities: Activity[] = [
       {
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest) {
     const totalDefects = 5;
     const totalReturnQcItems = 10;
     const defectsInReturns = 15; // Total defects found in returns
-    
+
     const stats: ActivityStats = {
       totalDefects,
       totalReturnQcItems,
@@ -131,4 +132,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

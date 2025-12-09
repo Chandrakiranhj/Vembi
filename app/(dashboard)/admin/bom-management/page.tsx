@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { checkUserRole } from '@/lib/roleCheck';
 import { Role } from '@prisma/client';
@@ -16,19 +16,20 @@ async function isAdmin(userId: string) {
 }
 
 export default async function AdminBOMManagementPage() {
-  const authResult = await auth();
-  const userId = authResult?.userId;
-  
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
+
   if (!userId) {
     redirect('/sign-in');
   }
-  
+
   const isUserAdmin = await isAdmin(userId);
-  
+
   if (!isUserAdmin) {
     redirect('/dashboard');
   }
-  
+
   // Fetch all products
   const products = await prisma.product.findMany({
     orderBy: { name: 'asc' },
@@ -38,7 +39,7 @@ export default async function AdminBOMManagementPage() {
       modelNumber: true,
     },
   });
-  
+
   // Fetch all components
   const components = await prisma.component.findMany({
     orderBy: { name: 'asc' },
@@ -49,12 +50,12 @@ export default async function AdminBOMManagementPage() {
       category: true,
     },
   });
-  
+
   return (
-    <AdminBOMManagementClient 
+    <AdminBOMManagementClient
       products={products}
       components={components}
       isAdmin={isUserAdmin}
     />
   );
-} 
+}

@@ -6,13 +6,14 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String   @unique // Clerk user ID
+  id             String   @id @default(uuid())
+  userId         String   @unique // Clerk user ID (will be Supabase Auth ID later)
   name           String
   email          String   @unique
   role           Role     @default(PENDING_APPROVAL)
@@ -35,7 +36,7 @@ enum Role {
 }
 
 model Vendor {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String   @id @default(uuid())
   name            String   @unique
   contactPerson   String?
   email           String?
@@ -49,13 +50,12 @@ model Vendor {
 }
 
 model Component {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String   @id @default(uuid())
   name            String
   sku             String   @unique
   description     String?
   category        String
   minimumQuantity Int      @default(10)
-  unitPrice       Float?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   stockBatches    StockBatch[]
@@ -67,28 +67,29 @@ model Component {
 }
 
 model StockBatch {
-  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  id                  String    @id @default(uuid())
   batchNumber         String    @unique
-  componentId         String    @db.ObjectId
+  componentId         String
   component           Component @relation(fields: [componentId], references: [id])
   initialQuantity     Int
   currentQuantity     Int
-  vendorId            String    @db.ObjectId
+  vendorId            String
   vendor              Vendor    @relation(fields: [vendorId], references: [id])
   dateReceived        DateTime  @default(now())
   expiryDate          DateTime?
   notes               String?
-  unitCost            Float?
+  invoiceImage        String?   // URL to invoice or reference image
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   assemblyUsages      AssemblyComponentBatch[]
-  returnQCDefects     ReturnQCDefect[]
+  returnQCDefects     ReturnQCDefect[] @relation("OriginalBatch")
+  replacementQCDefects ReturnQCDefect[] @relation("ReplacementBatch")
 
   @@map("stock_batches")
 }
 
 model Product {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(uuid())
   modelNumber  String   @unique
   name         String
   description  String?
@@ -101,11 +102,11 @@ model Product {
 }
 
 model Assembly {
-  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId               String   @db.ObjectId
+  id                      String   @id @default(uuid())
+  productId               String
   product                 Product  @relation(fields: [productId], references: [id])
   serialNumber            String   @unique
-  assembledById           String   @db.ObjectId
+  assembledById           String
   assembledBy             User     @relation("CreatedBy", fields: [assembledById], references: [id])
   status                  AssemblyStatus @default(IN_PROGRESS)
   startTime               DateTime @default(now())
@@ -125,12 +126,12 @@ enum AssemblyStatus {
 }
 
 model AssemblyComponentBatch {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  assemblyId    String      @db.ObjectId
+  id            String      @id @default(uuid())
+  assemblyId    String
   assembly      Assembly    @relation(fields: [assemblyId], references: [id])
-  componentId   String      @db.ObjectId
+  componentId   String
   component     Component   @relation(fields: [componentId], references: [id])
-  stockBatchId  String      @db.ObjectId
+  stockBatchId  String
   stockBatch    StockBatch  @relation(fields: [stockBatchId], references: [id])
   quantityUsed  Int
   createdAt     DateTime    @default(now())
@@ -140,15 +141,15 @@ model AssemblyComponentBatch {
 }
 
 model Return {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String   @id @default(uuid())
   serialNumber    String
   reason          String
   modelNumber     String?
-  loggedById      String   @db.ObjectId
+  loggedById      String
   loggedBy        User     @relation("ProcessedBy", fields: [loggedById], references: [id])
-  assemblyId      String?  @db.ObjectId
+  assemblyId      String?
   assembly        Assembly? @relation(fields: [assemblyId], references: [id])
-  productId       String?  @db.ObjectId
+  productId       String?
   product         Product? @relation(fields: [productId], references: [id])
   status          ReturnStatus @default(RECEIVED)
   qc              ReturnQC?
@@ -168,10 +169,10 @@ enum ReturnStatus {
 }
 
 model ReturnComponent {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  returnId      String   @db.ObjectId
+  id            String   @id @default(uuid())
+  returnId      String
   return        Return   @relation(fields: [returnId], references: [id])
-  componentId   String   @db.ObjectId
+  componentId   String
   component     Component @relation(fields: [componentId], references: [id])
   defective     Boolean  @default(false)
   notes         String?
@@ -180,10 +181,10 @@ model ReturnComponent {
 }
 
 model Defect {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  componentId   String   @db.ObjectId
+  id            String   @id @default(uuid())
+  componentId   String
   component     Component @relation(fields: [componentId], references: [id])
-  reportedById  String   @db.ObjectId
+  reportedById  String
   reportedBy    User     @relation("ReportedBy", fields: [reportedById], references: [id])
   severity      DefectSeverity @default(MEDIUM)
   description   String
@@ -209,10 +210,10 @@ enum DefectStatus {
 }
 
 model ProductComponent {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId       String   @db.ObjectId
+  id              String   @id @default(uuid())
+  productId       String
   product         Product  @relation(fields: [productId], references: [id])
-  componentId     String   @db.ObjectId
+  componentId     String
   component       Component @relation(fields: [componentId], references: [id])
   quantityRequired Int     // Quantity of this component needed for one unit of the product
   createdAt       DateTime @default(now())
@@ -222,10 +223,10 @@ model ProductComponent {
 }
 
 model ReturnQC {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  returnId    String      @unique @db.ObjectId
+  id          String      @id @default(uuid())
+  returnId    String      @unique
   return      Return      @relation(fields: [returnId], references: [id])
-  qcById      String      @db.ObjectId
+  qcById      String
   qcBy        User        @relation(fields: [qcById], references: [id])
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -234,18 +235,21 @@ model ReturnQC {
 }
 
 model ReturnQCDefect {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  qcId        String      @db.ObjectId
-  qc          ReturnQC    @relation(fields: [qcId], references: [id])
-  componentId String      @db.ObjectId
-  component   Component   @relation(fields: [componentId], references: [id])
-  batchId     String      @db.ObjectId
-  batch       StockBatch  @relation(fields: [batchId], references: [id])
-  defectType  String      // e.g., "Physical Damage", "Functional Issue"
-  description String
-  severity    Severity    @default(MEDIUM)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                String           @id @default(uuid())
+  qcId              String
+  qc                ReturnQC         @relation(fields: [qcId], references: [id])
+  componentId       String
+  component         Component        @relation(fields: [componentId], references: [id])
+  batchId           String?
+  batch             StockBatch?      @relation("OriginalBatch", fields: [batchId], references: [id])
+  replacementBatchId String?
+  replacementBatch  StockBatch?      @relation("ReplacementBatch", fields: [replacementBatchId], references: [id])
+  defectType        String?          // e.g., "Physical Damage", "Functional Issue"
+  description       String
+  severity          Severity         @default(MEDIUM)
+  resolution        DefectResolution @default(NONE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 }
 
 enum QCStatus {
@@ -260,4 +264,10 @@ enum Severity {
   MEDIUM
   HIGH
   CRITICAL
-} 
+}
+
+enum DefectResolution {
+  NONE
+  FIX
+  REPLACE
+}

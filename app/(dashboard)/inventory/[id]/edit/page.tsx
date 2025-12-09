@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import ComponentForm from '@/components/ComponentForm';
-import { useComponents } from '@/lib/hooks/useComponents'; 
+import { useComponents } from '@/lib/hooks/useComponents';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from "@/components/ui/skeleton"; // For loading state
@@ -17,7 +17,6 @@ interface Component {
   category: string;
   currentQuantity: number;
   minimumQuantity: number;
-  unitPrice?: number;
   createdAt?: string; // Add optional fields from useComponents if needed
   updatedAt?: string;
   _count?: { batches: number };
@@ -28,7 +27,7 @@ export default function EditComponentPage() {
   const params = useParams();
   const id = params?.id as string; // Get ID from URL, handle potential null
   const { getComponent, updateComponent } = useComponents();
-  
+
   const [componentData, setComponentData] = useState<Partial<Component> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +72,7 @@ export default function EditComponentPage() {
       if (!data.name || !data.sku || !data.category || data.currentQuantity === undefined || data.minimumQuantity === undefined) {
         throw new Error("Missing required fields (Name, SKU, Category, Quantities).");
       }
-      
+
       await updateComponent(id, data);
       toast.success('Component updated successfully!');
       router.push('/inventory'); // Redirect after success
@@ -114,11 +113,11 @@ export default function EditComponentPage() {
               </div>
             </div>
           ) : componentData ? (
-            <ComponentForm 
-              initialData={componentData} 
-              onSubmit={handleSubmit} 
-              onCancel={handleCancel} 
-              isSubmitting={isSubmitting} 
+            <ComponentForm
+              initialData={componentData}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+              isSubmitting={isSubmitting}
             />
           ) : (
             <p>Could not load component data.</p> // Fallback if data isn't loaded
@@ -127,4 +126,4 @@ export default function EditComponentPage() {
       </Card>
     </div>
   );
-} 
+}

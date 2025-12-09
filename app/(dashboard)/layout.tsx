@@ -1,13 +1,13 @@
 import React, { ReactNode } from "react";
-import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/sonner";
-import UserSync from "@/components/UserSync";
 import { prisma } from "@/lib/prisma";
 import { PrismaClient } from "@prisma/client";
-import NavWrapper from "./nav-wrapper";
-
-// Define the Role type to match the Prisma schema
-type RoleType = "ADMIN" | "ASSEMBLER" | "RETURN_QC" | "SERVICE_PERSON" | "QC_PERSON" | "PENDING_APPROVAL";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { DashboardHeader } from "./_components/dashboard-header";
+import { RoleType } from "./_components/nav-config";
+import { AIChat } from "@/components/ai/AIChat";
 
 // Extend PrismaClient type to include lowercase model access
 type PrismaClientWithLowercaseModels = PrismaClient & {
@@ -16,126 +16,81 @@ type PrismaClientWithLowercaseModels = PrismaClient & {
     findMany: (args: Record<string, unknown>) => Promise<Record<string, unknown>[]>;
     count: (args: Record<string, unknown>) => Promise<number>;
     update: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    create: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    upsert: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
   }
 };
-
-// Define navigation item structure with role-based access
-interface NavItem {
-  name: string;
-  href: string;
-  iconName: string; // Use a string identifier instead of a function
-  showBadge?: boolean;
-  allowedRoles: RoleType[]; // Roles that can access this item
-}
-
-// Define navigation items with role-based access using icon names
-const navItems: NavItem[] = [
-  { 
-    name: "Dashboard", 
-    href: "/dashboard", 
-    iconName: "dashboard", 
-    allowedRoles: ["ADMIN", "ASSEMBLER", "RETURN_QC", "SERVICE_PERSON", "QC_PERSON"]
-  },
-  { 
-    name: "Inventory", 
-    href: "/inventory", 
-    iconName: "inventory", 
-    allowedRoles: ["ADMIN", "QC_PERSON"]
-  },
-  { 
-    name: "Assembly QC", 
-    href: "/assembly", 
-    iconName: "assembly", 
-    allowedRoles: ["ADMIN", "ASSEMBLER"]
-  },
-  { 
-    name: "Returns QC", 
-    href: "/returns", 
-    iconName: "returns", 
-    allowedRoles: ["ADMIN", "RETURN_QC", "SERVICE_PERSON"]
-  },
-  { 
-    name: "Defects", 
-    href: "/defects", 
-    iconName: "defects", 
-    allowedRoles: ["ADMIN", "QC_PERSON"]
-  },
-  { 
-    name: "Reports", 
-    href: "/reports", 
-    iconName: "reports", 
-    allowedRoles: ["ADMIN"]
-  },
-  { 
-    name: "AI Assistant", 
-    href: "/ai-assistant", 
-    iconName: "ai-assistant", 
-    allowedRoles: ["ADMIN"]
-  },
-  { 
-    name: "Users", 
-    href: "/users", 
-    iconName: "users", 
-    showBadge: true, 
-    allowedRoles: ["ADMIN"]
-  },
-];
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   // Cast prisma client to work with lowercase model names
   const prismaWithModels = prisma as PrismaClientWithLowercaseModels;
-  
-  const authData = await auth();
-  const userId = authData.userId;
-  
+
+  const supabase = await createClient();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const userId = authUser?.id;
+
   if (!userId) {
-    return <div className="p-6 text-red-600">Authentication Error. Please sign in again.</div>;
+    redirect('/sign-in');
   }
 
-  const user = await prismaWithModels.user.findFirst({
-    where: { userId: userId },
-    select: { role: true }
-  });
+  // Use upsert to handle race conditions where multiple requests try to create the user simultaneously
+  let user = null;
+
+  if (authUser.email) {
+    try {
+      user = await prismaWithModels.user.upsert({
+        where: { userId: userId },
+        update: {}, // No changes if user exists
+        create: {
+          userId: userId,
+          email: authUser.email,
+          name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+          role: "PENDING_APPROVAL",
+        },
+        select: { role: true }
+      });
+    } catch (error) {
+      console.error("Error upserting user:", error);
+      // If upsert fails (e.g. email constraint), try to just find the user
+      // This is a fallback for edge cases
+      user = await prismaWithModels.user.findFirst({
+        where: { userId: userId },
+        select: { role: true }
+      });
+    }
+  } else {
+    // Fallback if no email (shouldn't happen with email auth)
+    user = await prismaWithModels.user.findFirst({
+      where: { userId: userId },
+      select: { role: true }
+    });
+  }
 
   // User exists but is pending approval
   if (user?.role === "PENDING_APPROVAL") {
+    redirect('/pending-approval');
+  }
+
+  // User creation failed or still null for some reason
+  if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-yellow-50">
-        <div className="text-center bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-yellow-800 mb-3">Awaiting Approval</h2>
-          <p className="text-gray-600 mb-4">
-            Your account registration is complete, but requires administrator approval before you can access the dashboard.
+      <div className="min-h-screen flex items-center justify-center bg-muted/40">
+        <div className="text-center bg-background p-8 rounded-lg shadow-sm border">
+          <h2 className="text-xl font-semibold text-destructive mb-3">Account Error</h2>
+          <p className="text-muted-foreground mb-4">
+            We couldn't retrieve or create your account details.
           </p>
-          <p className="text-sm text-gray-500">
-            An administrator has been notified. Please check back later or contact support if approval takes too long.
+          <p className="text-sm text-muted-foreground">
+            Please try signing out and signing in again.
           </p>
         </div>
       </div>
     );
   }
 
-  // User doesn't exist in DB at all (should be temporary after login due to UserSync)
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-3">Initializing Account...</h2>
-          <p className="text-gray-600 mb-4">
-            Please wait while we set up your account.
-          </p>
-        </div>
-      </div>
-    );
-  }
-     
   const isAdmin = user?.role === "ADMIN";
   const userRole = user?.role as RoleType;
-  
-  // Filter navigation items based on user role
-  const visibleNavItems = navItems.filter(item => 
-    item.allowedRoles.includes(userRole)
-  );
-  
+
   // Check if there are pending users (only for admins)
   let pendingUsersCount = 0;
   if (isAdmin) {
@@ -143,18 +98,26 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       where: { role: "PENDING_APPROVAL" }
     });
   }
-  
+
   return (
-    <>
-      <UserSync />
-      <NavWrapper 
-        visibleNavItems={visibleNavItems} 
-        isAdmin={isAdmin} 
+    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      <DashboardSidebar
+        userRole={userRole}
+        isAdmin={isAdmin}
         pendingUsersCount={pendingUsersCount}
-      >
-        {children}
-      </NavWrapper>
-      <Toaster position="top-right" />
-    </>
+      />
+      <div className="flex flex-col">
+        <DashboardHeader
+          userRole={userRole}
+          isAdmin={isAdmin}
+          pendingUsersCount={pendingUsersCount}
+        />
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+          {children}
+        </main>
+      </div>
+      <Toaster />
+      <AIChat />
+    </div>
   );
-} 
+}

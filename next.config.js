@@ -14,10 +14,9 @@ const nextConfig = {
       exclude: ['error', 'warn'],
     } : false,
   },
-  swcMinify: true, // Use SWC minifier for better performance
   images: {
-    domains: ['images.clerk.dev', 'vembi.in'], // Allow Clerk images and Vembi domain
-    unoptimized: false, // Ensure images are optimized
+    domains: ['images.clerk.dev', 'vembi.in', 'fqbtjucnphnhvypdueis.supabase.co'],
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
@@ -27,18 +26,18 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'vembi.in',
       },
+      {
+        protocol: 'https',
+        hostname: 'fqbtjucnphnhvypdueis.supabase.co',
+      },
     ],
   },
   experimental: {
-    typedRoutes: false, // Disable typedRoutes which can cause issues with handler parameter typing
-    optimizeCss: true, // Enable CSS optimization
+    typedRoutes: false,
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    // Modern bundle targeting for better client-side performance
-    browsersListForSwc: true,
-    legacyBrowsers: false,
   }
 }
 
-export default nextConfig 
+export default nextConfig

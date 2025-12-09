@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from "react";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton } from "@/components/UserButton";
 import { Settings } from "lucide-react";
 import NavLink from "./client-nav";
 
@@ -192,17 +192,17 @@ export default function NavWrapper({ children, visibleNavItems, isAdmin, pending
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
-                <input 
-                  type="text" 
-                  placeholder="Search..." 
+                <input
+                  type="text"
+                  placeholder="Search..."
                   className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm ml-2 w-full text-[#5A4C3A]"
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 sm:gap-4">
               {/* Notification bell */}
-              <Link 
+              <Link
                 href="/users"
                 className="p-1.5 rounded-full hover:bg-[#F5F1E4] relative"
                 style={{ visibility: isAdmin && pendingUsersCount > 0 ? 'visible' : 'hidden' }}
@@ -217,17 +217,10 @@ export default function NavWrapper({ children, visibleNavItems, isAdmin, pending
                   </span>
                 )}
               </Link>
-              
+
               <div className="hidden sm:block h-6 w-px bg-gray-200"></div>
-              
-              <UserButton 
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "h-8 w-8 sm:h-9 sm:w-9"
-                  }
-                }} 
-              />
+
+              <UserButton />
             </div>
           </div>
         </header>
@@ -237,7 +230,7 @@ export default function NavWrapper({ children, visibleNavItems, isAdmin, pending
           {children}
         </main>
       </div>
-    
+
       {/* Mobile sidebar */}
       <div className="fixed inset-y-0 left-0 w-72 bg-gradient-to-b from-[#6D1A27] to-[#4A1219] text-slate-50 transform -translate-x-full transition-transform duration-300 ease-in-out z-30 md:hidden overflow-y-auto" id="mobile-sidebar">
         <div className="p-6 border-b border-[#8B2131]/30 flex justify-between items-center">
@@ -281,7 +274,7 @@ export default function NavWrapper({ children, visibleNavItems, isAdmin, pending
           </ul>
         </nav>
       </div>
-      
+
       <script dangerouslySetInnerHTML={{
         __html: `
           // Initialize mobile menu handlers immediately instead of waiting for DOMContentLoaded
@@ -345,4 +338,4 @@ export default function NavWrapper({ children, visibleNavItems, isAdmin, pending
       }} />
     </div>
   );
-} 
+}

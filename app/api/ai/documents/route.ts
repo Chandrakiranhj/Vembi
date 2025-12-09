@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
-import { 
-  addDocument, 
-  getAllDocuments, 
+import { createClient } from '@/lib/supabase/server';
+import {
+  addDocument,
+  getAllDocuments,
   getDocumentsByType,
   deleteDocument,
   getDocument
@@ -12,8 +12,9 @@ import {
 export async function GET(req: NextRequest) {
   try {
     // Check authentication
-    const auth = getAuth(req);
-    const { userId } = auth;
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
 
     if (!userId) {
       return NextResponse.json(
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // Return specific document if ID is provided
     if (id) {
-      const document = getDocument(id);
+      const document = await getDocument(id);
       if (!document) {
         return NextResponse.json(
           { error: 'Not Found', message: 'Document not found' },
@@ -41,18 +42,18 @@ export async function GET(req: NextRequest) {
 
     // Return documents of a specific type if type is provided
     if (type) {
-      const documents = getDocumentsByType(type);
+      const documents = await getDocumentsByType(type);
       return NextResponse.json({ documents });
     }
 
     // Return all documents by default
-    const documents = getAllDocuments();
+    const documents = await getAllDocuments();
     return NextResponse.json({ documents });
   } catch (error) {
     console.error('Error in documents endpoint:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal Server Error', 
+      {
+        error: 'Internal Server Error',
         message: error instanceof Error ? error.message : 'An unexpected error occurred'
       },
       { status: 500 }
@@ -64,8 +65,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Check authentication
-    const auth = getAuth(req);
-    const { userId } = auth;
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
 
     if (!userId) {
       return NextResponse.json(
@@ -86,20 +88,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Add the document, which returns both document and pineconeSuccess
+    // Add the document
     const result = await addDocument(title, content, type, metadata);
 
-    // Return the new document with Pinecone status
-    return NextResponse.json({ 
-      document: result.document, 
-      success: true, 
-      pineconeSuccess: result.pineconeSuccess 
+    // Return the new document
+    return NextResponse.json({
+      document: result.document,
+      success: result.success
     });
   } catch (error) {
     console.error('Error adding document:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal Server Error', 
+      {
+        error: 'Internal Server Error',
         message: error instanceof Error ? error.message : 'An unexpected error occurred'
       },
       { status: 500 }
@@ -111,8 +112,9 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Check authentication
-    const auth = getAuth(req);
-    const { userId } = auth;
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
 
     if (!userId) {
       return NextResponse.json(
@@ -132,7 +134,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Delete the document (now async)
+    // Delete the document
     const success = await deleteDocument(id);
 
     if (!success) {
@@ -147,11 +149,11 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error('Error deleting document:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal Server Error', 
+      {
+        error: 'Internal Server Error',
         message: error instanceof Error ? error.message : 'An unexpected error occurred'
       },
       { status: 500 }
     );
   }
-} 
+}

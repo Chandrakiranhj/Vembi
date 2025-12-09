@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -16,7 +16,14 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_VENDORS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view vendors." }, { status: 403 });
@@ -46,7 +53,14 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_VENDORS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to update vendors." }, { status: 403 });
@@ -77,7 +91,7 @@ export async function PUT(
 
     // Check if updated name would clash with another vendor
     const vendorWithSameName = await prisma.vendor.findFirst({
-      where: { 
+      where: {
         name,
         id: { not: params.id }
       }
@@ -119,7 +133,14 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_VENDORS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to update vendors." }, { status: 403 });
@@ -164,4 +185,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-} 
+}

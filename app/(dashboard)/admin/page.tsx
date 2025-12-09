@@ -1,19 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ComponentManagement } from '@/components/admin/ComponentManagement';
 import { BOMManagement } from '@/components/admin/BOMManagement';
 import VendorsPage from '@/app/(dashboard)/vendors/page';
-import { useAuth } from '@clerk/nextjs';
+import { useUser } from '@/hooks/use-user';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('components');
-  const { userId } = useAuth();
+  const { user, isLoaded } = useUser();
+  const userId = user?.id;
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
@@ -43,12 +43,14 @@ export default function AdminPage() {
       }
     };
 
-    if (userId) {
+    if (isLoaded && userId) {
       checkAuthorization();
+    } else if (isLoaded && !userId) {
+      // Optional: redirect to sign-in if not logged in, though middleware might handle this
     }
-  }, [userId, router]);
+  }, [userId, isLoaded, router]);
 
-  if (isAuthorized === null) {
+  if (!isLoaded || isAuthorized === null) {
     return (
       <div className="container mx-auto py-10 flex justify-center items-center">
         <Card className="w-full max-w-md text-center p-6">
@@ -59,7 +61,7 @@ export default function AdminPage() {
   }
 
   if (!isAuthorized) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
@@ -89,4 +91,4 @@ export default function AdminPage() {
       </Card>
     </div>
   );
-} 
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Severity } from "@prisma/client";
 
 // Helper function to calculate severity value
@@ -43,9 +43,12 @@ const getRangeDays = (range: string): number => {
 export async function GET(req: NextRequest) {
   try {
     console.log("Component-wise vendor performance endpoint called");
-    
+
     // Authentication
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -53,15 +56,15 @@ export async function GET(req: NextRequest) {
     // Extract query parameters
     const { searchParams } = new URL(req.url);
     const range = searchParams.get("range") || "30d";
-    
+
     // Calculate date range
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - getRangeDays(range));
-    
+
     // 1. Get all vendors
     const vendors = await prisma.vendor.findMany();
     console.log("Vendors fetched:", vendors.length);
-    
+
     // 2. Get all stock batches with their components
     const stockBatches = await prisma.stockBatch.findMany({
       include: {
@@ -70,7 +73,7 @@ export async function GET(req: NextRequest) {
       }
     });
     console.log("Stock batches fetched:", stockBatches.length);
-    
+
     // 3. Get return QC defects (these have direct batch associations)
     const returnQCDefects = await prisma.returnQCDefect.findMany({
       where: {
@@ -87,38 +90,38 @@ export async function GET(req: NextRequest) {
       }
     });
     console.log("Return QC defects fetched:", returnQCDefects.length);
-    
+
     // 4. First, gather data about which components each vendor supplies
     const vendorComponents: Record<string, Set<string>> = {};
     const componentNames: Record<string, string> = {};
     const componentCategories: Record<string, string> = {};
-    
+
     // Initialize vendor-component mapping
     for (const vendor of vendors) {
       vendorComponents[vendor.id] = new Set();
     }
-    
+
     // Map components to vendors through stock batches
     for (const batch of stockBatches) {
       componentNames[batch.componentId] = batch.component.name;
       componentCategories[batch.componentId] = batch.component.category;
-      
+
       if (vendorComponents[batch.vendorId]) {
         vendorComponents[batch.vendorId].add(batch.componentId);
       }
     }
-    
+
     // 5. For each vendor and their components, collect defect data
     const vendorComponentData: Record<string, Record<string, {
       defectCount: number;
       totalSeverity: number;
       category: string;
     }>> = {};
-    
+
     // Initialize the data structure
     for (const vendor of vendors) {
       vendorComponentData[vendor.id] = {};
-      
+
       // Initialize each component this vendor supplies
       for (const componentId of vendorComponents[vendor.id]) {
         vendorComponentData[vendor.id][componentId] = {
@@ -128,28 +131,28 @@ export async function GET(req: NextRequest) {
         };
       }
     }
-    
+
     // 6. Count defects per component per vendor
     for (const defect of returnQCDefects) {
       if (defect.batch?.vendor && defect.componentId) {
         const vendorId = defect.batch.vendor.id;
         const componentId = defect.componentId;
-        
+
         if (vendorComponentData[vendorId] && vendorComponentData[vendorId][componentId]) {
           vendorComponentData[vendorId][componentId].defectCount++;
           vendorComponentData[vendorId][componentId].totalSeverity += getSeverityValue(defect.severity);
         }
       }
     }
-    
+
     // 7. Format the data for the response
     const componentPerformance = vendors.map(vendor => {
       const componentData = vendorComponentData[vendor.id] || {};
       const componentsArray = Object.entries(componentData).map(([componentId, data]) => {
-        const avgSeverity = data.defectCount > 0 
-          ? data.totalSeverity / data.defectCount 
+        const avgSeverity = data.defectCount > 0
+          ? data.totalSeverity / data.defectCount
           : 0;
-        
+
         return {
           componentId,
           componentName: componentNames[componentId] || 'Unknown',
@@ -158,11 +161,11 @@ export async function GET(req: NextRequest) {
           severity: getSeverityString(avgSeverity)
         };
       });
-      
+
       // Calculate aggregate metrics
       const totalComponents = componentsArray.length;
       const totalDefects = componentsArray.reduce((sum, comp) => sum + comp.defectCount, 0);
-      
+
       return {
         vendorId: vendor.id,
         vendorName: vendor.name,
@@ -172,7 +175,7 @@ export async function GET(req: NextRequest) {
         components: componentsArray.sort((a, b) => b.defectCount - a.defectCount)
       };
     }).filter(vendor => vendor.totalComponents > 0);  // Only include vendors with components
-    
+
     // 8. If no data, create sample data
     if (componentPerformance.length === 0) {
       console.log("No component performance data, creating samples");
@@ -181,7 +184,7 @@ export async function GET(req: NextRequest) {
         { id: 'sample2', name: 'Vendor B' },
         { id: 'sample3', name: 'Vendor C' }
       ];
-      
+
       return NextResponse.json({
         componentPerformance: sampleVendors.map(vendor => {
           const sampleComponents = [
@@ -190,7 +193,7 @@ export async function GET(req: NextRequest) {
             { name: 'Capacitor', category: 'Electronics' },
             { name: 'Housing', category: 'Mechanical' }
           ].slice(0, Math.floor(Math.random() * 3) + 2); // 2-4 components per vendor
-          
+
           const components = sampleComponents.map((comp, index) => ({
             componentId: `${vendor.id}-comp${index}`,
             componentName: comp.name,
@@ -198,10 +201,10 @@ export async function GET(req: NextRequest) {
             defectCount: Math.floor(Math.random() * 10),
             severity: ['LOW', 'MEDIUM', 'HIGH'][Math.floor(Math.random() * 3)]
           }));
-          
+
           const totalComponents = components.length;
           const totalDefects = components.reduce((sum, comp) => sum + comp.defectCount, 0);
-          
+
           return {
             vendorId: vendor.id,
             vendorName: vendor.name,
@@ -213,7 +216,7 @@ export async function GET(req: NextRequest) {
         })
       });
     }
-    
+
     return NextResponse.json({ componentPerformance });
   } catch (error) {
     console.error("Error fetching component-wise vendor performance:", error);
@@ -222,4 +225,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

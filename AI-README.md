@@ -11,7 +11,7 @@ The Vembi AI Assistant is an intelligent chatbot integrated into the Vembi Inven
 
 ### Knowledge Base
 - **Document Management**: Upload and manage company documents, manuals, and guides
-- **Vector Search**: Semantic search powered by Pinecone vector database
+- **Vector Search**: Semantic search powered by Supabase Vector (pgvector)
 - **RAG Implementation**: Retrieval-Augmented Generation for accurate, context-aware answers
 - **Context-Aware Responses**: Get answers that incorporate both inventory data and knowledge documents
 
@@ -23,7 +23,7 @@ The AI Assistant is built using the following technologies:
 - **Google Embedding API**: For generating document embeddings
 - **Next.js API Routes**: Server-side endpoints for AI interactions
 - **Prisma ORM**: Database access layer for inventory data
-- **Pinecone Vector Database**: Vector storage for document embeddings (for RAG)
+- **Supabase Vector**: Vector storage for document embeddings (for RAG) using `pgvector`
 - **React UI Components**: Clean, responsive interface for user interactions
 
 ## Using the AI Assistant
@@ -49,7 +49,7 @@ To enhance the AI's knowledge:
 
 The AI will automatically:
 1. Generate embeddings for the document
-2. Store the embeddings in Pinecone
+2. Store the embeddings in Supabase
 3. Use these documents to provide context-aware answers
 
 ## Technical Implementation
@@ -63,7 +63,7 @@ The AI Assistant uses a hybrid approach:
 
 - `ai-service.ts`: Core service that interfaces with Google's Generative AI
 - `ai-db-helpers.ts`: Database helper functions for inventory queries
-- `ai-document-store.ts`: Document storage and vector search functionality
+- `ai-document-store.ts`: Document storage and vector search functionality (using Supabase)
 - `ChatUI.tsx`: User interface for the chat interaction
 - `DocumentsManager.tsx`: Interface for managing knowledge documents
 
@@ -71,11 +71,9 @@ The AI Assistant uses a hybrid approach:
 
 The document search uses:
 1. **Embedding Generation**: Documents are converted to vector embeddings using Google's Embedding API
-2. **Vector Storage**: Embeddings are stored in Pinecone with document metadata
-3. **Semantic Search**: User queries are converted to vectors and matched against document vectors
+2. **Vector Storage**: Embeddings are stored in Supabase `documents` table with `vector` column
+3. **Semantic Search**: User queries are converted to vectors and matched against document vectors using `pgvector` similarity search
 4. **Relevance Ranking**: Documents are ranked by similarity to the query
-
-For detailed instructions on setting up Pinecone, see [PINECONE-SETUP-GUIDE.md](./PINECONE-SETUP-GUIDE.md).
 
 ## Development
 
@@ -88,4 +86,4 @@ To extend the AI assistant:
 
 ## Deployment
 
-For deployment instructions, see the [AI-DEPLOYMENT-GUIDE.md](./AI-DEPLOYMENT-GUIDE.md) file. 
+For deployment instructions, see the [AI-DEPLOYMENT-GUIDE.md](./AI-DEPLOYMENT-GUIDE.md) file.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role, Prisma } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -13,7 +13,14 @@ const ROLES = {
 // GET: Fetch all products
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view products." }, { status: 403 });
@@ -21,9 +28,9 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search");
-    
+
     const whereClause: Prisma.ProductWhereInput = {};
-    
+
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -31,20 +38,20 @@ export async function GET(req: NextRequest) {
         { description: { contains: search, mode: 'insensitive' } }
       ];
     }
-    
+
     const products = await prisma.product.findMany({
       where: whereClause,
       orderBy: { name: "asc" },
       include: {
         _count: {
-          select: { 
+          select: {
             assemblies: true,
             returns: true
           }
         }
       }
     });
-    
+
     return NextResponse.json(products);
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -58,7 +65,14 @@ export async function GET(req: NextRequest) {
 // POST: Create a new product
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_PRODUCTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to create products." }, { status: 403 });
@@ -66,25 +80,25 @@ export async function POST(req: NextRequest) {
 
     const json = await req.json();
     const { modelNumber, name, description, specifications } = json;
-    
+
     if (!modelNumber || !name) {
       return NextResponse.json(
         { error: "Model number and name are required" },
         { status: 400 }
       );
     }
-    
+
     const existingProduct = await prisma.product.findUnique({
       where: { modelNumber }
     });
-    
+
     if (existingProduct) {
       return NextResponse.json(
         { error: "A product with this model number already exists" },
         { status: 409 }
       );
     }
-    
+
     const product = await prisma.product.create({
       data: {
         modelNumber,
@@ -93,7 +107,7 @@ export async function POST(req: NextRequest) {
         specifications: specifications || {}
       }
     });
-    
+
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error("Error creating product:", error);
@@ -102,4 +116,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

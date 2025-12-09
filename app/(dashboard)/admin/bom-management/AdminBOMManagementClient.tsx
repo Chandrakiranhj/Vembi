@@ -45,7 +45,6 @@ interface ComponentFormData {
   description: string;
   category: string;
   minimumQuantity: number;
-  unitPrice: number | '';
 }
 
 interface BOMFormData {
@@ -71,10 +70,10 @@ export default function AdminBOMManagementClient({
   const [bomItems, setBomItems] = useState<ProductComponent[]>([]);
   const [isLoadingBOM, setIsLoadingBOM] = useState(false);
   const [bomError, setBomError] = useState('');
-  
+
   // State for components list (may be updated)
   const [components, setComponents] = useState<Component[]>(initialComponents);
-  
+
   // State for add component form
   const [componentForm, setComponentForm] = useState<ComponentFormData>({
     name: '',
@@ -82,10 +81,9 @@ export default function AdminBOMManagementClient({
     description: '',
     category: 'ELECTRONIC',
     minimumQuantity: 1,
-    unitPrice: ''
   });
   const [isAddingComponent, setIsAddingComponent] = useState(false);
-  
+
   // State for add BOM item form
   const [bomForm, setBomForm] = useState<BOMFormData>({
     productId: '',
@@ -93,7 +91,7 @@ export default function AdminBOMManagementClient({
     quantityRequired: 1
   });
   const [isAddingBomItem, setIsAddingBomItem] = useState(false);
-  
+
   // Fetch BOM for selected product
   useEffect(() => {
     if (selectedProductId) {
@@ -102,20 +100,20 @@ export default function AdminBOMManagementClient({
       setBomItems([]);
     }
   }, [selectedProductId]);
-  
+
   const fetchBOM = async (productId: string) => {
     setIsLoadingBOM(true);
     setBomError('');
-    
+
     try {
       const response = await fetch(`/api/products/${productId}/components`);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("Failed to fetch BOM:", response.status, errorData);
         throw new Error("Failed to fetch bill of materials");
       }
-      
+
       const data = await response.json();
       setBomItems(data);
     } catch (error) {
@@ -125,18 +123,18 @@ export default function AdminBOMManagementClient({
       setIsLoadingBOM(false);
     }
   };
-  
+
   // Handle product change
   const handleProductChange = (value: string) => {
     setSelectedProductId(value);
     setBomForm(prev => ({ ...prev, productId: value }));
   };
-  
+
   // Handle component form changes
   const handleComponentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    if (name === 'minimumQuantity' || name === 'unitPrice') {
+
+    if (name === 'minimumQuantity') {
       // Convert to number or empty string for number fields
       const numValue = value === '' ? '' : Number(value);
       setComponentForm(prev => ({ ...prev, [name]: numValue }));
@@ -144,11 +142,11 @@ export default function AdminBOMManagementClient({
       setComponentForm(prev => ({ ...prev, [name]: value }));
     }
   };
-  
+
   // Handle BOM form changes
   const handleBomFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'quantityRequired') {
       // Convert to number
       const numValue = Number(value);
@@ -157,22 +155,22 @@ export default function AdminBOMManagementClient({
       setBomForm(prev => ({ ...prev, [name]: value }));
     }
   };
-  
+
   // Handle component select change
   const handleComponentSelectChange = (value: string) => {
     setBomForm(prev => ({ ...prev, componentId: value }));
   };
-  
+
   // Handle category select change
   const handleCategoryChange = (value: string) => {
     setComponentForm(prev => ({ ...prev, category: value }));
   };
-  
+
   // Add new component
   const handleAddComponent = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingComponent(true);
-    
+
     try {
       const response = await fetch('/api/components', {
         method: 'POST',
@@ -185,20 +183,19 @@ export default function AdminBOMManagementClient({
           description: componentForm.description || undefined,
           category: componentForm.category,
           minimumQuantity: Number(componentForm.minimumQuantity),
-          unitPrice: componentForm.unitPrice === '' ? undefined : Number(componentForm.unitPrice),
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add component');
       }
-      
+
       const newComponent = await response.json();
-      
+
       // Add to components list
       setComponents(prev => [...prev, newComponent]);
-      
+
       // Reset form
       setComponentForm({
         name: '',
@@ -206,9 +203,8 @@ export default function AdminBOMManagementClient({
         description: '',
         category: 'ELECTRONIC',
         minimumQuantity: 1,
-        unitPrice: ''
       });
-      
+
       toast.success('Component added successfully');
     } catch (error) {
       console.error('Error adding component:', error);
@@ -219,12 +215,12 @@ export default function AdminBOMManagementClient({
       setIsAddingComponent(false);
     }
   };
-  
+
   // Add BOM item
   const handleAddBomItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingBomItem(true);
-    
+
     try {
       const response = await fetch(`/api/products/${bomForm.productId}/components`, {
         method: 'POST',
@@ -236,24 +232,24 @@ export default function AdminBOMManagementClient({
           quantityRequired: Number(bomForm.quantityRequired),
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add component to BOM');
       }
-      
+
       const newBomItem = await response.json();
-      
+
       // Refresh BOM
       fetchBOM(bomForm.productId);
-      
+
       // Reset form (except productId)
       setBomForm(prev => ({
         ...prev,
         componentId: '',
         quantityRequired: 1
       }));
-      
+
       toast.success('Component added to BOM successfully');
     } catch (error) {
       console.error('Error adding component to BOM:', error);
@@ -264,26 +260,26 @@ export default function AdminBOMManagementClient({
       setIsAddingBomItem(false);
     }
   };
-  
+
   // Delete BOM item
   const handleDeleteBomItem = async (productId: string, componentId: string) => {
     if (!confirm('Are you sure you want to remove this component from the BOM?')) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/products/${productId}/components/${componentId}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to remove component from BOM');
       }
-      
+
       // Refresh BOM
       fetchBOM(productId);
-      
+
       toast.success('Component removed from BOM successfully');
     } catch (error) {
       console.error('Error removing component from BOM:', error);
@@ -292,24 +288,24 @@ export default function AdminBOMManagementClient({
       });
     }
   };
-  
+
   // Edit BOM item quantity
   const handleEditBomItemQuantity = async (productId: string, componentId: string, currentQuantity: number) => {
     const newQuantity = prompt('Enter new quantity:', currentQuantity.toString());
-    
+
     if (newQuantity === null) {
       return; // User cancelled
     }
-    
+
     const quantity = parseInt(newQuantity, 10);
-    
+
     if (isNaN(quantity) || quantity <= 0) {
       toast.error('Invalid quantity', {
         description: 'Quantity must be a positive number',
       });
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/products/${productId}/components/${componentId}`, {
         method: 'PUT',
@@ -318,15 +314,15 @@ export default function AdminBOMManagementClient({
         },
         body: JSON.stringify({ quantityRequired: quantity }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update quantity');
       }
-      
+
       // Refresh BOM
       fetchBOM(productId);
-      
+
       toast.success('Quantity updated successfully');
     } catch (error) {
       console.error('Error updating quantity:', error);
@@ -335,25 +331,25 @@ export default function AdminBOMManagementClient({
       });
     }
   };
-  
+
   // Redirect if not admin
   if (!isAdmin) {
     return null; // Will be redirected at the server component level
   }
-  
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Admin Inventory Management</h1>
         <p className="text-gray-500">Manage product BOMs and add new components</p>
       </div>
-      
+
       <Tabs defaultValue="bom" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="bom">Bill of Materials</TabsTrigger>
           <TabsTrigger value="components">Add Components</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="bom">
           <Card>
             <CardHeader>
@@ -379,7 +375,7 @@ export default function AdminBOMManagementClient({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 {bomError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -387,11 +383,11 @@ export default function AdminBOMManagementClient({
                     <AlertDescription>{bomError}</AlertDescription>
                   </Alert>
                 )}
-                
+
                 {selectedProductId && (
                   <div>
                     <h3 className="text-lg font-medium mb-4">Components</h3>
-                    
+
                     {isLoadingBOM ? (
                       <div className="flex justify-center py-8">
                         <Spinner size="lg" />
@@ -418,17 +414,17 @@ export default function AdminBOMManagementClient({
                                 </td>
                                 <td className="px-4 py-3 text-sm">{item.quantityRequired}</td>
                                 <td className="px-4 py-3 text-sm text-right">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleEditBomItemQuantity(item.productId, item.componentId, item.quantityRequired)}
                                     className="mr-2"
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
                                     Edit
                                   </Button>
-                                  <Button 
-                                    variant="destructive" 
+                                  <Button
+                                    variant="destructive"
                                     size="sm"
                                     onClick={() => handleDeleteBomItem(item.productId, item.componentId)}
                                   >
@@ -446,7 +442,7 @@ export default function AdminBOMManagementClient({
                         No components in BOM. Add one below.
                       </div>
                     )}
-                    
+
                     {selectedProductId && (
                       <div className="mt-6 p-4 border rounded-md bg-gray-50">
                         <h4 className="text-md font-medium mb-4">Add Component to BOM</h4>
@@ -466,11 +462,11 @@ export default function AdminBOMManagementClient({
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           <div className="grid gap-2">
                             <label className="text-sm font-medium">Quantity Required</label>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               name="quantityRequired"
                               value={bomForm.quantityRequired}
                               onChange={handleBomFormChange}
@@ -478,7 +474,7 @@ export default function AdminBOMManagementClient({
                               required
                             />
                           </div>
-                          
+
                           <Button type="submit" disabled={isAddingBomItem || !bomForm.componentId}>
                             {isAddingBomItem ? <Spinner size="sm" className="mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                             Add to BOM
@@ -492,7 +488,7 @@ export default function AdminBOMManagementClient({
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="components">
           <Card>
             <CardHeader>
@@ -504,17 +500,17 @@ export default function AdminBOMManagementClient({
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Name</label>
-                    <Input 
+                    <Input
                       name="name"
                       value={componentForm.name}
                       onChange={handleComponentFormChange}
                       required
                     />
                   </div>
-                  
+
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">SKU</label>
-                    <Input 
+                    <Input
                       name="sku"
                       value={componentForm.sku}
                       onChange={handleComponentFormChange}
@@ -522,16 +518,16 @@ export default function AdminBOMManagementClient({
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Description</label>
-                  <Input 
+                  <Input
                     name="description"
                     value={componentForm.description}
                     onChange={handleComponentFormChange}
                   />
                 </div>
-                
+
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Category</label>
@@ -549,10 +545,10 @@ export default function AdminBOMManagementClient({
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Minimum Quantity</label>
-                    <Input 
+                    <Input
                       type="number"
                       name="minimumQuantity"
                       value={componentForm.minimumQuantity}
@@ -561,20 +557,8 @@ export default function AdminBOMManagementClient({
                       required
                     />
                   </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Unit Price (optional)</label>
-                    <Input 
-                      type="number"
-                      name="unitPrice"
-                      value={componentForm.unitPrice}
-                      onChange={handleComponentFormChange}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
                 </div>
-                
+
                 <Button type="submit" disabled={isAddingComponent}>
                   {isAddingComponent ? <Spinner size="sm" className="mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                   Add Component
@@ -586,4 +570,4 @@ export default function AdminBOMManagementClient({
       </Tabs>
     </div>
   );
-} 
+}

@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { currentUser } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: Request,
   { params }: { params: { serialNumber: string } }
 ) {
   try {
-    const user = await currentUser();
-    if (!user) {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
@@ -48,4 +50,4 @@ export async function GET(
     console.error('Error verifying serial number:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-} 
+}

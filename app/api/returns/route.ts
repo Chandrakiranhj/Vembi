@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
@@ -10,7 +10,10 @@ const ALLOWED_ROLES = [Role.ADMIN, Role.RETURN_QC];
 export async function GET(req: NextRequest) {
   try {
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -58,7 +61,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     // Check if assembly exists
     const assembly = await prisma.assembly.findFirst({
-      where: { 
+      where: {
         serialNumber: {
           equals: serialNumber,
           mode: 'insensitive'
@@ -97,7 +103,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get the internal user ID from the Clerk userId
+    // Get the internal user ID from the Supabase userId
     const user = await prisma.user.findFirst({
       where: { userId: userId },
       select: { id: true }
@@ -148,4 +154,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

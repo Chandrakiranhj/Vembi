@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -14,10 +14,18 @@ const ROLES = {
 // GET: Fetch a single component by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_COMPONENTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view this component." }, { status: 403 });
@@ -37,12 +45,57 @@ export async function GET(
     // Use a separate query to get batches
     const stockBatches = await prisma.stockBatch.findMany({
       where: { componentId: params.id },
-      orderBy: { dateReceived: 'desc' }
+      orderBy: { dateReceived: 'desc' },
+      include: {
+        vendor: true
+      }
+    });
+
+    // Get assembly usages
+    const assemblyUsages = await prisma.assemblyComponentBatch.findMany({
+      where: { componentId: params.id },
+      include: {
+        assembly: {
+          select: {
+            id: true,
+            serialNumber: true,
+            status: true,
+            createdAt: true
+          }
+        },
+        stockBatch: {
+          select: {
+            batchNumber: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get return QC defects
+    const returnQCDefects = await prisma.returnQCDefect.findMany({
+      where: { componentId: params.id },
+      include: {
+        qc: {
+          include: {
+            return: {
+              select: {
+                id: true,
+                serialNumber: true,
+                reason: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     return NextResponse.json({
       ...component,
-      stockBatches
+      stockBatches,
+      assemblyUsages,
+      returnQCDefects
     });
   } catch (error) {
     console.error("Error fetching component:", error);
@@ -56,17 +109,25 @@ export async function GET(
 // PUT: Update a component by ID
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MODIFY_COMPONENTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to update components." }, { status: 403 });
     }
 
     const json = await req.json();
-    const { name, sku, description, category, minimumQuantity, unitPrice } = json;
+    const { name, sku, description, category, minimumQuantity } = json;
 
     // Validate required fields
     if (!name || !sku || !category) {
@@ -99,7 +160,6 @@ export async function PUT(
         description,
         category,
         minimumQuantity: minimumQuantity === undefined ? undefined : Number(minimumQuantity),
-        unitPrice: unitPrice === undefined ? undefined : Number(unitPrice),
       },
     });
 
@@ -107,7 +167,7 @@ export async function PUT(
   } catch (error) {
     console.error("Error updating component:", error);
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-         return NextResponse.json({ error: "Component not found" }, { status: 404 });
+      return NextResponse.json({ error: "Component not found" }, { status: 404 });
     }
     return NextResponse.json(
       { error: "Failed to update component" },
@@ -119,10 +179,18 @@ export async function PUT(
 // DELETE: Delete a component by ID
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.DELETE_COMPONENTS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to delete components." }, { status: 403 });
@@ -149,10 +217,10 @@ export async function DELETE(
       if (returnsUsingComponent > 0) errors.push(`used in ${returnsUsingComponent} return(s)`);
       if (stockBatchesCount > 0) errors.push(`has ${stockBatchesCount} associated stock batch(es)`);
       return NextResponse.json(
-        { 
+        {
           error: `Cannot delete component because it is ${errors.join(', ')}. Please remove dependencies first.`
         },
-        { status: 409 } 
+        { status: 409 }
       );
     }
 
@@ -171,11 +239,11 @@ export async function DELETE(
   } catch (error) {
     console.error("Error deleting component:", error);
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-         return NextResponse.json({ error: "Component not found" }, { status: 404 });
+      return NextResponse.json({ error: "Component not found" }, { status: 404 });
     }
     return NextResponse.json(
       { error: "Failed to delete component" },
       { status: 500 }
     );
   }
-} 
+}

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
+
 import { Providers } from './providers';
-import { ensureAIInitialized } from "@/lib/ai-initializer";
 import { viewport } from "./viewport";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "VEMBI Inventory QC",
@@ -20,25 +22,18 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Initialize AI services
-  if (typeof window === 'undefined') {
-    ensureAIInitialized();
-  }
-
   return (
-    <ClerkProvider>
-      <html lang="en" className="h-full">
-        <head>
-          <meta name="theme-color" content="#6D1A27" />
-          <meta name="apple-mobile-web-app-capable" content="yes" />
-          <meta name="format-detection" content="telephone=no" />
-        </head>
-        <body className={`${inter.className} h-full`}>
-          <Providers>
+    <html lang="en" className="h-full">
+      <head>
+        <meta name="theme-color" content="#6D1A27" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
+      </head>
+      <body className={`${inter.variable} font-sans h-full antialiased`}>
+        <Providers>
           {children}
-          </Providers>
-        </body>
-      </html>
-    </ClerkProvider>
+        </Providers>
+      </body>
+    </html>
   );
 }

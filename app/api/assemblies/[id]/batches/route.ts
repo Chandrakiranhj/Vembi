@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
@@ -14,7 +14,14 @@ type Params = { params: { id: string } };
 // GET: Fetch batches used in an assembly
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await getAuth(request);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_ASSEMBLY);
 
     if (!isAuthorized) {
@@ -80,9 +87,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 
         const vendor = stockBatch?.vendorId
           ? await prisma.vendor.findUnique({
-              where: { id: stockBatch.vendorId },
-              select: { name: true }
-            })
+            where: { id: stockBatch.vendorId },
+            select: { name: true }
+          })
           : null;
 
         return {
@@ -109,4 +116,4 @@ export async function GET(request: NextRequest, { params }: Params) {
       { status: 500 }
     );
   }
-} 
+}

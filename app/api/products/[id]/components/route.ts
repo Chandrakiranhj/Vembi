@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from '@/lib/prisma';
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
 // Define allowed roles
 const ROLES = {
-  VIEW_BOM: [Role.ADMIN, Role.ASSEMBLER, Role.RETURN_QC, Role.SERVICE_PERSON], // Allow broader view access
+  VIEW_BOM: [Role.ADMIN, Role.ASSEMBLER, Role.RETURN_QC, Role.SERVICE_PERSON, Role.QC_PERSON], // Allow broader view access
   MANAGE_BOM: [Role.ADMIN], // Only Admin can modify
 };
 
@@ -16,7 +16,10 @@ type Params = { params: { id: string } };
 export async function GET(request: NextRequest, { params }: Params) {
   try {
     // Add role check for viewing
-    const { userId } = await auth();
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -30,64 +33,36 @@ export async function GET(request: NextRequest, { params }: Params) {
     const url = new URL(request.url);
     const includeBatches = url.searchParams.get('includeBatches') === 'true';
 
-    if (includeBatches) {
-      // Fetch product components with their associated components
-      const productComponents = await prisma.productComponent.findMany({
-        where: { productId: params.id },
-        include: {
-          component: true
-        }
-      });
-
-      // Get component IDs
-      const componentIds = productComponents.map(pc => pc.componentId);
-
-      // Fetch components with their stock batches
-      const componentsWithBatches = await prisma.component.findMany({
-        where: { id: { in: componentIds } },
-        include: {
-          stockBatches: {
-            include: {
-              vendor: {
-                select: {
-                  id: true,
-                  name: true
+    // Fetch product components with their associated components
+    // If includeBatches is true, we also fetch the stock batches for those components
+    const productComponents = await prisma.productComponent.findMany({
+      where: { productId: params.id },
+      include: {
+        component: {
+          include: {
+            stockBatches: includeBatches ? {
+              where: {
+                currentQuantity: { gt: 0 }
+              },
+              include: {
+                vendor: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
                 }
+              },
+              orderBy: {
+                dateReceived: 'asc' // FIFO: Oldest first
               }
-            },
-            where: {
-              currentQuantity: {
-                gt: 0
-              }
-            },
-            orderBy: {
-              dateReceived: 'desc'
-            }
+            } : false // Don't include if not requested
           }
-        },
-        orderBy: { name: 'asc' }
-      });
+        }
+      },
+      orderBy: { component: { name: 'asc' } }
+    });
 
-      return NextResponse.json(componentsWithBatches);
-    } else {
-      // Original behavior - just return product components
-      const productComponents = await prisma.productComponent.findMany({
-        where: { productId: params.id },
-        include: {
-          component: {
-            select: {
-              id: true,
-              name: true,
-              sku: true,
-              category: true,
-            }
-          }
-        },
-        orderBy: { component: { name: 'asc' } }
-      });
-
-      return NextResponse.json(productComponents);
-    }
+    return NextResponse.json(productComponents);
 
   } catch (error) {
     console.error("Error fetching product components:", error);
@@ -107,7 +82,10 @@ interface BOMItem {
 // POST: Add a component requirement to a product (Admin Only)
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await auth();
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -159,4 +137,4 @@ export async function POST(request: NextRequest, { params }: Params) {
     console.error('Error updating BOM:', error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-} 
+}

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get the internal user ID from the Clerk userId
+    // Get the internal user ID from the Supabase userId
     const user = await prisma.user.findUnique({
       where: { userId },
       select: { id: true }
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
           const existingBatch = await tx.stockBatch.findFirst({
             where: { componentId }
           });
-          
+
           if (!existingBatch) {
             // Create a placeholder batch if none exists
             const placeholderBatch = await tx.stockBatch.create({
@@ -147,7 +150,10 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -187,4 +193,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

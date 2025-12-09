@@ -8,7 +8,6 @@ interface Component {
   category: string;
   currentQuantity: number;
   minimumQuantity: number;
-  unitPrice?: number;
 }
 
 interface ComponentFormProps {
@@ -48,12 +47,11 @@ export default function ComponentForm({
     category: '',
     currentQuantity: 0,
     minimumQuantity: 10,
-    unitPrice: undefined,
     ...initialData
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Update form when initialData changes
   useEffect(() => {
     setFormData({
@@ -63,14 +61,13 @@ export default function ComponentForm({
       category: '',
       currentQuantity: 0,
       minimumQuantity: 10,
-      unitPrice: undefined,
       ...initialData
     });
   }, [initialData]);
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     // Handle numeric inputs
     if (type === 'number') {
       setFormData({
@@ -83,7 +80,7 @@ export default function ComponentForm({
         [name]: value
       });
     }
-    
+
     // Clear error for this field
     if (errors[name]) {
       setErrors({
@@ -92,48 +89,44 @@ export default function ComponentForm({
       });
     }
   };
-  
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name?.trim()) {
       newErrors.name = 'Name is required';
     }
-    
+
     if (!formData.sku?.trim()) {
       newErrors.sku = 'SKU is required';
     }
-    
+
     if (!formData.category?.trim()) {
       newErrors.category = 'Category is required';
     }
-    
+
     if (formData.currentQuantity === undefined || formData.currentQuantity < 0) {
       newErrors.currentQuantity = 'Current quantity must be a non-negative number';
     }
-    
+
     if (formData.minimumQuantity === undefined || formData.minimumQuantity < 0) {
       newErrors.minimumQuantity = 'Minimum quantity must be a non-negative number';
     }
-    
-    if (formData.unitPrice !== undefined && formData.unitPrice < 0) {
-      newErrors.unitPrice = 'Unit price must be a non-negative number';
-    }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     onSubmit(formData);
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -148,16 +141,15 @@ export default function ComponentForm({
             name="name"
             value={formData.name || ''}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-              errors.name ? 'border-red-300' : ''
-            }`}
+            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${errors.name ? 'border-red-300' : ''
+              }`}
             disabled={isSubmitting}
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-600">{errors.name}</p>
           )}
         </div>
-        
+
         {/* SKU */}
         <div>
           <label htmlFor="sku" className="block text-sm font-medium text-gray-700">
@@ -169,16 +161,15 @@ export default function ComponentForm({
             name="sku"
             value={formData.sku || ''}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-              errors.sku ? 'border-red-300' : ''
-            }`}
+            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${errors.sku ? 'border-red-300' : ''
+              }`}
             disabled={isSubmitting}
           />
           {errors.sku && (
             <p className="mt-1 text-sm text-red-600">{errors.sku}</p>
           )}
         </div>
-        
+
         {/* Category */}
         <div>
           <label htmlFor="category" className="block text-sm font-medium text-gray-700">
@@ -189,9 +180,8 @@ export default function ComponentForm({
             name="category"
             value={formData.category || ''}
             onChange={handleChange}
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-              errors.category ? 'border-red-300' : ''
-            }`}
+            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${errors.category ? 'border-red-300' : ''
+              }`}
             disabled={isSubmitting}
           >
             <option value="">Select a category</option>
@@ -205,7 +195,7 @@ export default function ComponentForm({
             <p className="mt-1 text-sm text-red-600">{errors.category}</p>
           )}
         </div>
-        
+
         {/* Current Quantity */}
         <div>
           <label htmlFor="currentQuantity" className="block text-sm font-medium text-gray-700">
@@ -218,16 +208,15 @@ export default function ComponentForm({
             value={formData.currentQuantity === undefined ? '' : formData.currentQuantity}
             onChange={handleChange}
             min="0"
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-              errors.currentQuantity ? 'border-red-300' : ''
-            }`}
+            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${errors.currentQuantity ? 'border-red-300' : ''
+              }`}
             disabled={isSubmitting}
           />
           {errors.currentQuantity && (
             <p className="mt-1 text-sm text-red-600">{errors.currentQuantity}</p>
           )}
         </div>
-        
+
         {/* Minimum Quantity */}
         <div>
           <label htmlFor="minimumQuantity" className="block text-sm font-medium text-gray-700">
@@ -240,45 +229,16 @@ export default function ComponentForm({
             value={formData.minimumQuantity === undefined ? '' : formData.minimumQuantity}
             onChange={handleChange}
             min="0"
-            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-              errors.minimumQuantity ? 'border-red-300' : ''
-            }`}
+            className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${errors.minimumQuantity ? 'border-red-300' : ''
+              }`}
             disabled={isSubmitting}
           />
           {errors.minimumQuantity && (
             <p className="mt-1 text-sm text-red-600">{errors.minimumQuantity}</p>
           )}
         </div>
-        
-        {/* Unit Price */}
-        <div>
-          <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
-            Unit Price
-          </label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm">$</span>
-            </div>
-            <input
-              type="number"
-              id="unitPrice"
-              name="unitPrice"
-              value={formData.unitPrice === undefined ? '' : formData.unitPrice}
-              onChange={handleChange}
-              min="0"
-              step="0.01"
-              className={`pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
-                errors.unitPrice ? 'border-red-300' : ''
-              }`}
-              disabled={isSubmitting}
-            />
-          </div>
-          {errors.unitPrice && (
-            <p className="mt-1 text-sm text-red-600">{errors.unitPrice}</p>
-          )}
-        </div>
       </div>
-      
+
       {/* Description */}
       <div>
         <label htmlFor="description" className="block text-sm font-medium text-gray-700">
@@ -294,7 +254,7 @@ export default function ComponentForm({
           disabled={isSubmitting}
         />
       </div>
-      
+
       <div className="flex justify-end space-x-3">
         <button
           type="button"
@@ -314,4 +274,4 @@ export default function ComponentForm({
       </div>
     </form>
   );
-} 
+}

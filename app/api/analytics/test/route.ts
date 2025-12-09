@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 
 // Add dynamic configuration to prevent static generation
 export const dynamic = 'force-dynamic';
@@ -17,9 +17,10 @@ interface ActivityStats {
 export async function GET(req: NextRequest) {
   try {
     // Get authenticated user ID
-    const auth = getAuth(req);
-    const userId = auth.userId;
-    
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     const totalDefects = 1;
     const totalReturnQcItems = 1;
     const defectsInReturns = 2; // Defects found in returns
-    
+
     const stats: ActivityStats = {
       totalDefects,
       totalReturnQcItems,
@@ -64,4 +65,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+
+// Define the response type
+interface ActivityResponse {
+  activities: Activity[];
+  totalCount: number;
+  stats: {
+    totalDefects: number;
+    totalReturnQcItems: number;
+    totalAssemblies: number;
+    totalBatches: number;
+    totalActivities: number;
+  };
+}
 
 // Define activity interface
 interface Activity {
@@ -12,21 +25,13 @@ interface Activity {
   metadata: Record<string, unknown>;
 }
 
-// Define stats interface
-interface ActivityStats {
-  totalDefects: number;
-  totalReturnQcItems: number;
-  totalAssemblies: number;
-  totalBatches: number;
-  totalActivities: number;
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<NextResponse<ActivityResponse | { error: string }>> {
   try {
     // Get authenticated user ID
-    const auth = getAuth(req);
-    const userId = auth.userId;
-    
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -34,238 +39,250 @@ export async function GET(req: NextRequest) {
     // Extract query parameters
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
-    
-    // Define empty collections for activities and statistics
+
+    // Initialize collections for activities and stats
     let defectActivities: Activity[] = [];
     let returnQcActivities: Activity[] = [];
     let assemblyActivities: Activity[] = [];
     let batchActivities: Activity[] = [];
-    
+
     let totalDefects = 0;
     let totalReturnQcItems = 0;
     let totalAssemblies = 0;
     let totalBatches = 0;
-    
+
+    // Get user from database
+    let user = null;
     try {
-      // First, get the user's database ID using generic method
-      // We're being careful here since we don't know the exact schema
-      const users = await prisma.$queryRaw`
-        SELECT id FROM User WHERE userId = ${userId} LIMIT 1
-      `;
-      
-      const userArray = Array.isArray(users) ? users : [];
-      if (userArray.length === 0) {
+      user = await prisma.user.findUnique({
+        where: {
+          userId: userId
+        }
+      });
+
+      if (!user) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
-      
-      const userDbId = userArray[0].id;
-      
-      // Use try/catch for each query to handle missing tables
-
-      // 1. Try to get defects
-      try {
-        // First try to count
-        const defectsCount = await prisma.$queryRaw`
-          SELECT COUNT(*) as count FROM Defect WHERE reportedById = ${userDbId}
-        `;
-        
-        if (Array.isArray(defectsCount) && defectsCount.length > 0) {
-          totalDefects = Number(defectsCount[0].count || 0);
-        }
-        
-        // Then get recent items
-        const defects = await prisma.$queryRaw`
-          SELECT 
-            d.id, 
-            d.severity, 
-            d.createdAt, 
-            d.componentId, 
-            c.name as componentName
-          FROM Defect d
-          JOIN Component c ON d.componentId = c.id
-          WHERE d.reportedById = ${userDbId}
-          ORDER BY d.createdAt DESC
-          LIMIT ${limit}
-        `;
-        
-        if (Array.isArray(defects)) {
-          defectActivities = defects.map((defect: any) => ({
-            id: `defect-${defect.id}`,
-            type: 'defect',
-            title: `Reported defect in ${defect.componentName || 'component'}`,
-            description: `Severity: ${defect.severity || 'unknown'}`,
-            timestamp: defect.createdAt,
-            metadata: {
-              componentId: defect.componentId,
-              componentName: defect.componentName,
-              severity: defect.severity
-            }
-          }));
-        }
-      } catch (error) {
-        console.log("Error fetching defects:", error);
-        // Silently continue if this table doesn't exist
-      }
-      
-      // 2. Try to get return QC items
-      try {
-        // First try to count
-        const returnsCount = await prisma.$queryRaw`
-          SELECT COUNT(*) as count FROM ReturnQC WHERE qcById = ${userDbId}
-        `;
-        
-        if (Array.isArray(returnsCount) && returnsCount.length > 0) {
-          totalReturnQcItems = Number(returnsCount[0].count || 0);
-        }
-        
-        // Then get recent items
-        const returns = await prisma.$queryRaw`
-          SELECT 
-            r.id, 
-            r.status, 
-            r.createdAt, 
-            ret.productId,
-            p.name as productName,
-            (SELECT COUNT(*) FROM ReturnQCDefect WHERE qcId = r.id) as defectCount
-          FROM ReturnQC r
-          JOIN Return ret ON r.returnId = ret.id
-          LEFT JOIN Product p ON ret.productId = p.id
-          WHERE r.qcById = ${userDbId}
-          ORDER BY r.createdAt DESC
-          LIMIT ${limit}
-        `;
-        
-        if (Array.isArray(returns)) {
-          returnQcActivities = returns.map((item: any) => ({
-            id: `returnqc-${item.id}`,
-            type: 'returnqc',
-            title: `Processed return for ${item.productName || 'Unknown Product'}`,
-            description: `Found ${item.defectCount || 0} defect(s)`,
-            timestamp: item.createdAt,
-            metadata: {
-              productId: item.productId,
-              productName: item.productName,
-              defectCount: item.defectCount,
-              returnStatus: item.status
-            }
-          }));
-        }
-      } catch (error) {
-        console.log("Error fetching returns:", error);
-        // Silently continue if this table doesn't exist
-      }
-      
-      // 3. Try to get assemblies
-      try {
-        // First try to count
-        const assembliesCount = await prisma.$queryRaw`
-          SELECT COUNT(*) as count FROM Assembly WHERE assembledById = ${userDbId}
-        `;
-        
-        if (Array.isArray(assembliesCount) && assembliesCount.length > 0) {
-          totalAssemblies = Number(assembliesCount[0].count || 0);
-        }
-        
-        // Then get recent items
-        const assemblies = await prisma.$queryRaw`
-          SELECT 
-            id, 
-            name, 
-            serialNumber, 
-            status, 
-            createdAt
-          FROM Assembly
-          WHERE assembledById = ${userDbId}
-          ORDER BY createdAt DESC
-          LIMIT ${limit}
-        `;
-        
-        if (Array.isArray(assemblies)) {
-          assemblyActivities = assemblies.map((assembly: any) => ({
-            id: `assembly-${assembly.id}`,
-            type: 'assembly',
-            title: `Created assembly ${assembly.name || 'unnamed'}`,
-            description: `Serial: ${assembly.serialNumber || 'N/A'}`,
-            timestamp: assembly.createdAt,
-            metadata: {
-              assemblyId: assembly.id,
-              assemblyName: assembly.name,
-              serialNumber: assembly.serialNumber,
-              status: assembly.status
-            }
-          }));
-        }
-      } catch (error) {
-        console.log("Error fetching assemblies:", error);
-        // Silently continue if this table doesn't exist
-      }
-      
-      // 4. Try to get batches - note we don't have createdById in schema, 
-      // so just getting all batches as a fallback
-      try {
-        // First try to count all batches
-        const batchesCount = await prisma.$queryRaw`
-          SELECT COUNT(*) as count FROM StockBatch
-        `;
-        
-        if (Array.isArray(batchesCount) && batchesCount.length > 0) {
-          totalBatches = Number(batchesCount[0].count || 0);
-        }
-        
-        // Then get recent items
-        const batches = await prisma.$queryRaw`
-          SELECT 
-            b.id, 
-            b.initialQuantity, 
-            b.createdAt, 
-            b.componentId, 
-            c.name as componentName,
-            b.vendorId, 
-            v.name as vendorName
-          FROM StockBatch b
-          JOIN Component c ON b.componentId = c.id
-          JOIN Vendor v ON b.vendorId = v.id
-          ORDER BY b.createdAt DESC
-          LIMIT ${limit}
-        `;
-        
-        if (Array.isArray(batches)) {
-          batchActivities = batches.map((batch: any) => ({
-            id: `batch-${batch.id}`,
-            type: 'batch',
-            title: `Added ${batch.initialQuantity || 0} ${batch.componentName || 'items'}`,
-            description: `From vendor: ${batch.vendorName || 'unknown'}`,
-            timestamp: batch.createdAt,
-            metadata: {
-              batchId: batch.id,
-              componentId: batch.componentId,
-              componentName: batch.componentName,
-              vendorId: batch.vendorId,
-              vendorName: batch.vendorName,
-              quantity: batch.initialQuantity
-            }
-          }));
-        }
-      } catch (error) {
-        console.log("Error fetching batches:", error);
-        // Silently continue if this table doesn't exist
-      }
     } catch (error) {
-      console.error("Error querying database:", error);
-      // Continue with empty arrays
+      console.error("Error fetching user:", error);
+      return NextResponse.json({ error: "Failed to authenticate user" }, { status: 500 });
     }
 
-    // Combine all activities, sort by timestamp (newest first), and limit
+    // Get activities with try/catch for each query to handle potential errors
+
+    // 1. Get defects reported by user
+    try {
+      const defects = await prisma.defect.findMany({
+        where: {
+          reportedById: user.id
+        },
+        include: {
+          component: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: limit
+      });
+
+      defectActivities = defects.map(defect => ({
+        id: `defect-${defect.id}`,
+        type: 'defect',
+        title: `Reported defect in ${defect.component?.name || 'component'}`,
+        description: `Severity: ${defect.severity || 'unknown'}`,
+        timestamp: defect.createdAt,
+        metadata: {
+          componentId: defect.componentId,
+          componentName: defect.component?.name || 'Unknown',
+          severity: defect.severity
+        }
+      }));
+
+      // Get total count
+      totalDefects = await prisma.defect.count({
+        where: {
+          reportedById: user.id
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching defects:", error);
+      // Continue with empty array instead of failing
+    }
+
+    // 2. Get return QC items processed by user
+    try {
+      const returnQCs = await prisma.returnQC.findMany({
+        where: {
+          qcById: user.id
+        },
+        include: {
+          return: {
+            include: {
+              product: true
+            }
+          },
+          defects: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: limit
+      });
+
+      returnQcActivities = returnQCs.map(item => ({
+        id: `returnqc-${item.id}`,
+        type: 'returnqc',
+        title: `Processed return for ${item.return?.product?.name || 'Unknown Product'}`,
+        description: `Found ${item.defects?.length || 0} defect(s)`,
+        timestamp: item.createdAt,
+        metadata: {
+          returnId: item.returnId,
+          productId: item.return?.productId,
+          productName: item.return?.product?.name,
+          defectCount: item.defects?.length || 0,
+          status: item.status
+        }
+      }));
+
+      // Get total count
+      totalReturnQcItems = await prisma.returnQC.count({
+        where: {
+          qcById: user.id
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching return QC items:", error);
+      // Continue with empty array instead of failing
+    }
+
+    // 3. Get assemblies created by user
+    try {
+      const assemblies = await prisma.assembly.findMany({
+        where: {
+          assembledById: user.id
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: limit
+      });
+
+      assemblyActivities = assemblies.map(assembly => ({
+        id: `assembly-${assembly.id}`,
+        type: 'assembly',
+        title: `Created assembly ${assembly.name || 'unnamed'}`,
+        description: `Serial: ${assembly.serialNumber || 'N/A'}`,
+        timestamp: assembly.createdAt,
+        metadata: {
+          assemblyId: assembly.id,
+          assemblyName: assembly.name || '',
+          serialNumber: assembly.serialNumber || '',
+          status: assembly.status
+        }
+      }));
+
+      // Get total count
+      totalAssemblies = await prisma.assembly.count({
+        where: {
+          assembledById: user.id
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching assemblies:", error);
+      // Continue with empty array instead of failing
+    }
+
+    // 4. Get stock batches related to recent activities
+    try {
+      // Since StockBatch doesn't have a direct user relationship,
+      // we'll filter the batches based on related activities performed by this user
+
+      // First get assemblies that used components from batches
+      const userAssemblyComponentBatches = await prisma.assemblyComponentBatch.findMany({
+        where: {
+          assembly: {
+            assembledById: user.id
+          }
+        },
+        select: {
+          stockBatchId: true
+        },
+        distinct: ['stockBatchId']
+      });
+
+      // Get batch IDs from assemblies
+      const batchIdsFromAssemblies = userAssemblyComponentBatches.map(acb => acb.stockBatchId);
+
+      // Get batches from ReturnQCDefect where the user performed QC
+      const userReturnQCDefectBatches = await prisma.returnQCDefect.findMany({
+        where: {
+          qc: {
+            qcById: user.id
+          }
+        },
+        select: {
+          batchId: true
+        },
+        distinct: ['batchId']
+      });
+
+      // Get batch IDs from return QCs
+      const batchIdsFromReturnQCs = userReturnQCDefectBatches.map(rqcd => rqcd.batchId);
+
+      // Combine all batch IDs
+      const userRelatedBatchIds = [...new Set([...batchIdsFromAssemblies, ...batchIdsFromReturnQCs])];
+
+      // Query for batches with these IDs
+      const stockBatches = await prisma.stockBatch.findMany({
+        where: {
+          id: {
+            in: userRelatedBatchIds
+          }
+        },
+        include: {
+          component: true,
+          vendor: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: limit
+      });
+
+      batchActivities = stockBatches.map(batch => ({
+        id: `batch-${batch.id}`,
+        type: 'batch',
+        title: `Added ${batch.initialQuantity || 0} ${batch.component?.name || 'items'}`,
+        description: `From vendor: ${batch.vendor?.name || 'unknown'}`,
+        timestamp: batch.createdAt,
+        metadata: {
+          batchId: batch.id,
+          componentId: batch.componentId,
+          componentName: batch.component?.name || 'Unknown',
+          vendorId: batch.vendorId,
+          vendorName: batch.vendor?.name || 'Unknown',
+          quantity: batch.initialQuantity
+        }
+      }));
+
+      // Get total count of batches related to this user
+      totalBatches = userRelatedBatchIds.length;
+    } catch (error) {
+      console.error("Error fetching stock batches:", error);
+      // Continue with empty array instead of failing
+    }
+
+    // Combine all activities
     const allActivities = [
-      ...defectActivities, 
-      ...returnQcActivities, 
+      ...defectActivities,
+      ...returnQcActivities,
       ...assemblyActivities,
       ...batchActivities
     ]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit);
 
-    // Calculate total counts for stats
+    // Calculate total number of activities
     const totalActivities = totalDefects + totalReturnQcItems + totalAssemblies + totalBatches;
 
     return NextResponse.json({
@@ -281,10 +298,10 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Error fetching user recent activities:", error);
+    console.error("Error in user activities endpoint:", error);
     return NextResponse.json(
-      { error: "Failed to fetch recent activities: " + (error instanceof Error ? error.message : String(error)) },
+      { error: "Failed to fetch activities: " + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }
-} 
+}

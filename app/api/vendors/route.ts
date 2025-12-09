@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -13,7 +13,14 @@ const ROLES = {
 // GET: Fetch all vendors
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.VIEW_VENDORS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to view vendors." }, { status: 403 });
@@ -42,7 +49,14 @@ export async function GET(req: NextRequest) {
 // POST: Create a new vendor
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, ROLES.MANAGE_VENDORS);
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: You do not have permission to create vendors." }, { status: 403 });
@@ -92,4 +106,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

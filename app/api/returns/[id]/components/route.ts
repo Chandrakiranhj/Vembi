@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
@@ -14,7 +14,10 @@ export async function GET(
 ) {
   try {
     // Verify the request is authenticated
-    const { userId } = getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Please sign in again" },
@@ -106,4 +109,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

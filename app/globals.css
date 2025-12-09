@@ -3,214 +3,137 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 210 20% 98%;
+    /* Cool white */
+    --foreground: 222 47% 11%;
+    /* Deep Slate */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 11%;
+    /* Deep Slate (almost black) */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    /* Light Silver/Gray */
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222 47% 11%;
+
+    --radius: 0.75rem;
+
+    --chart-1: 222 47% 11%;
+    /* Slate */
+    --chart-2: 215 16% 47%;
+    /* Gray */
+    --chart-3: 210 40% 96.1%;
+    /* Silver */
+    --chart-4: 215 25% 27%;
+    /* Dark Gray */
+    --chart-5: 210 20% 98%;
+    /* Lightest Gray */
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    /* Deep Slate */
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    /* White/Silver for dark mode */
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    /* Darker Slate */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    /* Clean, subtle gradient */
+    background-image:
+      radial-gradient(at 0% 0%, hsla(210, 40%, 96%, 0.5) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(220, 20%, 90%, 0.3) 0px, transparent 50%);
+    background-attachment: fixed;
   }
-  /* Make sure tables are responsive */
-  table {
-    @apply w-full;
-  }
-  /* Ensure images don't overflow their containers */
-  img {
-    @apply max-w-full h-auto;
-  }
-  /* Improve form element sizing on mobile */
-  input, select, textarea {
-    @apply text-base;
-  }
-}
 
-:root {
-  /* Premium color scheme with deep burgundy, gold accents, and elegant slate tones */
-  --radius: 0.5rem;
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-  
-  /* Deep burgundy primary color */
-  --primary: oklch(0.30 0.18 15);
-  --primary-foreground: oklch(0.99 0 0);
-  
-  /* Soft gold secondary color */
-  --secondary: oklch(0.88 0.07 80);
-  --secondary-foreground: oklch(0.25 0.10 80);
-  
-  /* Muted with warm undertones */
-  --muted: oklch(0.96 0.01 80);
-  --muted-foreground: oklch(0.45 0.05 40);
-  
-  /* Subtle gold accent */
-  --accent: oklch(0.90 0.09 85);
-  --accent-foreground: oklch(0.25 0.10 70);
-  
-  /* Refined error/destructive state */
-  --destructive: oklch(0.58 0.22 30);
-  
-  /* Elegant borders and inputs */
-  --border: oklch(0.90 0.01 0);
-  --input: oklch(0.92 0.01 0);
-  --ring: oklch(0.35 0.15 25);
-  
-  /* Sophisticated chart colors */
-  --chart-1: oklch(0.35 0.18 20);  /* Burgundy */
-  --chart-2: oklch(0.55 0.12 60);  /* Muted gold */
-  --chart-3: oklch(0.40 0.10 270); /* Deep purple */
-  --chart-4: oklch(0.30 0.10 200); /* Deep teal */
-  --chart-5: oklch(0.60 0.08 30);  /* Warm brown */
-  
-  /* Sidebar with burgundy accents */
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.15 0 0);
-  --sidebar-primary: oklch(0.30 0.18 15);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.88 0.07 80);
-  --sidebar-accent-foreground: oklch(0.25 0.10 80);
-  --sidebar-border: oklch(0.90 0.01 0);
-  --sidebar-ring: oklch(0.35 0.15 25);
-}
-
-.dark {
-  /* Premium dark theme with rich colors */
-  --background: oklch(0.15 0 0);
-  --foreground: oklch(0.97 0 0);
-  
-  /* Elegant dark cards */
-  --card: oklch(0.18 0.01 0);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.18 0.01 0);
-  --popover-foreground: oklch(0.97 0 0);
-  
-  /* Warmer primary in dark mode */
-  --primary: oklch(0.65 0.12 25);
-  --primary-foreground: oklch(0.10 0 0);
-  
-  /* Rich gold tones for dark mode */
-  --secondary: oklch(0.60 0.12 80);
-  --secondary-foreground: oklch(0.10 0 0);
-  
-  /* Subtle muted tones */
-  --muted: oklch(0.25 0.02 20);
-  --muted-foreground: oklch(0.75 0.03 60);
-  
-  /* Gold accents for dark mode */
-  --accent: oklch(0.35 0.10 70);
-  --accent-foreground: oklch(0.97 0 0);
-  
-  /* Refined destructive state */
-  --destructive: oklch(0.70 0.20 30);
-  
-  /* Elegant borders in dark mode */
-  --border: oklch(1 0 0 / 15%);
-  --input: oklch(1 0 0 / 20%);
-  --ring: oklch(0.65 0.12 25 / 80%);
-  
-  /* Sophisticated chart colors for dark mode */
-  --chart-1: oklch(0.65 0.16 25);  /* Lighter burgundy */
-  --chart-2: oklch(0.70 0.15 80);  /* Warm gold */
-  --chart-3: oklch(0.55 0.16 290); /* Rich purple */
-  --chart-4: oklch(0.45 0.15 180); /* Teal */
-  --chart-5: oklch(0.75 0.12 35);  /* Amber */
-  
-  /* Dark sidebar with burgundy accents */
-  --sidebar: oklch(0.18 0.01 0);
-  --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.65 0.12 25);
-  --sidebar-primary-foreground: oklch(0.10 0 0);
-  --sidebar-accent: oklch(0.35 0.10 70);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(1 0 0 / 15%);
-  --sidebar-ring: oklch(0.65 0.12 25 / 80%);
+  .dark body {
+    background-image:
+      radial-gradient(at 0% 0%, hsla(222, 47%, 15%, 0.5) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(217, 32%, 15%, 0.3) 0px, transparent 50%);
+  }
 }
 
 @layer utilities {
-  /* Fade in animation */
-  .animate-fadeIn {
-    animation: fadeIn 0.8s ease-in-out;
-  }
-  
-  /* Pulse animation for elements */
-  .animate-pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-  
-  /* Hover transition for feature cards */
-  .hover\:transform:hover {
-    transform: translateY(-4px);
-    transition: transform 0.3s ease;
+  .animate-fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* Mobile responsive utilities */
-  .mobile-safe-area {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-  
-  .mobile-safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  
-  /* Responsive scrollable containers */
-  .scrollable-x {
-    @apply overflow-x-auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Touch-friendly buttons */
-  .touch-target {
-    @apply min-h-[44px] min-w-[44px];
-  }
-}
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+  /* Premium Glassmorphism - Slate Tint */
+  .glass {
+    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm;
   }
-  50% {
-    opacity: 0.7;
-  }
-}
 
-/* Mobile viewport fix for iOS and other mobile browsers */
-@supports (-webkit-touch-callout: none) {
-  .min-h-screen {
-    min-height: -webkit-fill-available;
-  }
-}
-
-/* Responsive tables for mobile */
-@media (max-width: 640px) {
-  .table-responsive {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Stack card layouts on mobile */
-  .card-stack > * {
-    margin-bottom: 1rem;
-  }
-  
-  /* Larger touch targets on mobile */
-  button, a, [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
+  .glass-card {
+    @apply bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md transition-all duration-300;
   }
 }

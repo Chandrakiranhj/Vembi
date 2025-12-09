@@ -1,37 +1,34 @@
-'use server'; // Mark component as Server Component to use async/await directly
+'use server';
 
 import { redirect } from 'next/navigation';
-import { auth } from '@clerk/nextjs/server';
-import { prisma } from "@/lib/prisma"; // Import prisma directly for role check
-import { Role } from '@prisma/client'; // Import Role enum
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { Role } from '@prisma/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-// import { revalidatePath } from 'next/cache'; // Removed unused import
 import { ApproveUserDialog } from './_components/ApproveUserDialog';
 import { EditUserNameDialog } from './_components/EditUserNameDialog';
 import { DeleteUserDialog } from './_components/DeleteUserDialog';
 import { RejectUserDialog } from './_components/RejectUserDialog';
-// Import server actions
-import { updateUserRole } from './_components/_actions/userActions'; // Remove rejectUser as it's used in the dialog now
+import { updateUserRole } from './_components/_actions/userActions';
 
-// Define user interface based on the API response
 interface User {
   id: string;
   userId: string;
   name: string;
   email: string;
-  role: Role; // Use the Role enum
+  role: Role;
   image?: string;
-  createdAt: Date; // Use Date type
+  createdAt: Date;
   _count?: {
     assemblies: number;
     returns: number;
@@ -39,9 +36,7 @@ interface User {
   }
 }
 
-// Role badges with colors based on role importance
 const RoleBadge = ({ role }: { role: Role }) => {
-  // Define colors for each role
   const getColorClass = (roleValue: Role): string => {
     switch (roleValue) {
       case Role.ADMIN:
@@ -60,29 +55,26 @@ const RoleBadge = ({ role }: { role: Role }) => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-  
+
   return (
     <Badge className={getColorClass(role)}>
-      {/* Check if role is a string before calling replace */}
       {typeof role === 'string' ? role.replace('_', ' ') : role}
     </Badge>
   );
 };
 
-// Function to fetch users with optional role filter
 async function getUsers(roleFilter?: Role): Promise<{ users: User[], error?: Error }> {
   try {
-    // Re-fetch users directly using prisma might be simpler in server component
     const whereClause: { role?: Role } = {};
     if (roleFilter) {
       whereClause.role = roleFilter;
     }
-    
+
     const users = await prisma.user.findMany({
-      where: whereClause, 
+      where: whereClause,
       orderBy: [
-        { role: "asc" }, 
-        { name: "asc" } 
+        { role: "asc" },
+        { name: "asc" }
       ],
       select: {
         id: true,
@@ -91,7 +83,7 @@ async function getUsers(roleFilter?: Role): Promise<{ users: User[], error?: Err
         email: true,
         role: true,
         image: true,
-        createdAt: true, // Ensure createdAt is selected
+        createdAt: true,
         updatedAt: true,
         _count: {
           select: {
@@ -102,28 +94,25 @@ async function getUsers(roleFilter?: Role): Promise<{ users: User[], error?: Err
         }
       }
     });
-    
-    // Cast to expected User type if necessary, especially for Date
-    return { users: users as User[] }; 
+
+    return { users: users as User[] };
   } catch (error) {
     console.error('Error fetching users:', error);
     return { users: [], error: error instanceof Error ? error : new Error('Unknown error fetching users') };
   }
 }
 
-// Server Actions moved to userActions.ts
-
 export default async function UsersPage() {
-  const authData = await auth(); // Await auth()
-  const clerkId = authData.userId;
-  
-  if (!clerkId) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
+
+  if (!userId) {
     redirect('/sign-in');
   }
-  
-  // Check if the current user is an admin
+
   const currentUser = await prisma.user.findFirst({
-    where: { userId: clerkId },
+    where: { userId: userId },
     select: { role: true }
   });
 
@@ -140,27 +129,25 @@ export default async function UsersPage() {
     );
   }
 
-  // Fetch pending and approved users separately using the enum
   const { users: pendingUsers, error: pendingError } = await getUsers(Role.PENDING_APPROVAL);
-  const { users: allUsers, error: approvedError } = await getUsers(); 
+  const { users: allUsers, error: approvedError } = await getUsers();
   const approvedUsers = allUsers.filter(u => u.role !== Role.PENDING_APPROVAL);
 
   if (pendingError || approvedError) {
     return (
-       <div className="container mx-auto py-10">
-         <Card>
-           <CardHeader><CardTitle>Error Loading Users</CardTitle></CardHeader>
-           <CardContent><p>{pendingError?.message || approvedError?.message || 'An unknown error occurred.'}</p></CardContent>
-         </Card>
-       </div>
+      <div className="container mx-auto py-10">
+        <Card>
+          <CardHeader><CardTitle>Error Loading Users</CardTitle></CardHeader>
+          <CardContent><p>{pendingError?.message || approvedError?.message || 'An unknown error occurred.'}</p></CardContent>
+        </Card>
+      </div>
     );
   }
-  
+
   return (
     <div className="container mx-auto py-10 space-y-8">
       <h1 className="text-2xl font-bold">User Management</h1>
 
-      {/* Pending Approval Section */}
       <Card>
         <CardHeader>
           <CardTitle>Pending Approval ({pendingUsers.length})</CardTitle>
@@ -197,10 +184,7 @@ export default async function UsersPage() {
                       <td className="p-3 text-sm text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                       <td className="p-3">
                         <div className="flex items-center space-x-2">
-                          {/* Approve Button - Will trigger a dialog/modal */} 
                           <ApproveUserDialog userId={user.id} userName={user.name} />
-                          
-                          {/* Replace direct form with RejectUserDialog */} 
                           <RejectUserDialog userId={user.id} userName={user.name} />
                         </div>
                       </td>
@@ -213,13 +197,12 @@ export default async function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Approved Users Table */}
       <Card>
         <CardHeader>
           <CardTitle>Approved Users ({approvedUsers.length})</CardTitle>
         </CardHeader>
         <CardContent>
-           <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full table-auto">
               <thead>
                 <tr className="bg-gray-50">
@@ -257,8 +240,7 @@ export default async function UsersPage() {
                     </td>
                     <td className="p-3">
                       <div className="space-y-2">
-                        {/* Role Update Form */}
-                        <form action={updateUserRole}> 
+                        <form action={updateUserRole}>
                           <input type="hidden" name="userId" value={user.id} />
                           <div className="flex items-center space-x-2">
                             <Select name="role" defaultValue={user.role}>
@@ -276,8 +258,7 @@ export default async function UsersPage() {
                             <Button type="submit" size="sm">Update</Button>
                           </div>
                         </form>
-                        
-                        {/* Edit Name and Delete Buttons */}
+
                         <div className="flex items-center space-x-2 mt-2">
                           <EditUserNameDialog userId={user.id} userName={user.name} />
                           <DeleteUserDialog userId={user.id} userName={user.name} />
@@ -293,4 +274,4 @@ export default async function UsersPage() {
       </Card>
     </div>
   );
-} 
+}

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -14,14 +14,16 @@ import { revalidatePath } from "next/cache";
  */
 export async function approveUserRole(userId: string, role: Role): Promise<{ success: boolean; error?: string }> {
   // 1. Verify the current user is an Admin
-  const authData = await auth();
-  const adminClerkId = authData.userId;
-  if (!adminClerkId) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminId = user?.id;
+
+  if (!adminId) {
     return { success: false, error: "Unauthorized: No logged-in user." };
   }
-  
+
   const adminUser = await prisma.user.findFirst({
-    where: { userId: adminClerkId },
+    where: { userId: adminId },
     select: { role: true }
   });
 
@@ -35,14 +37,14 @@ export async function approveUserRole(userId: string, role: Role): Promise<{ suc
   }
   // Ensure the role is a valid value from the enum
   if (!Object.values(Role).includes(role)) {
-      return { success: false, error: `Invalid role specified: ${role}` };
+    return { success: false, error: `Invalid role specified: ${role}` };
   }
 
   // 3. Update the user in the database
   try {
     const updatedUser = await prisma.user.update({
-      where: { 
-        id: userId, 
+      where: {
+        id: userId,
       },
       data: { role: role },
     });
@@ -70,20 +72,21 @@ export async function approveUserRole(userId: string, role: Role): Promise<{ suc
  * @returns Promise<void> - Adjusted return type for form action compatibility.
  */
 export async function rejectUser(formData: FormData): Promise<void> {
-  const authData = await auth();
-  const adminClerkId = authData.userId;
-  
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminId = user?.id;
+
   // Validate admin permissions
-  if (!adminClerkId) { 
-    console.error("Unauthorized attempt to reject user."); 
-    throw new Error("Unauthorized: No logged-in user."); 
+  if (!adminId) {
+    console.error("Unauthorized attempt to reject user.");
+    throw new Error("Unauthorized: No logged-in user.");
   }
-  
-  const adminUser = await prisma.user.findFirst({ 
-    where: { userId: adminClerkId },
+
+  const adminUser = await prisma.user.findFirst({
+    where: { userId: adminId },
     select: { role: true }
   });
-  
+
   if (adminUser?.role !== Role.ADMIN) {
     console.error("Forbidden attempt to reject user.");
     throw new Error("Forbidden: Only admins can reject users.");
@@ -113,10 +116,10 @@ export async function rejectUser(formData: FormData): Promise<void> {
     }
 
     // Delete the user from the database
-    await prisma.user.delete({ 
-      where: { id: userId } 
+    await prisma.user.delete({
+      where: { id: userId }
     });
-    
+
     // Refresh the users page
     revalidatePath('/users');
   } catch (error) {
@@ -135,28 +138,30 @@ export async function rejectUser(formData: FormData): Promise<void> {
 export async function updateUserRole(formData: FormData): Promise<void> { // Return void
   const role = formData.get('role') as Role;
   const userId = formData.get('userId') as string; // Need to get userId from form data
-  
+
   // Basic validation
   if (!role || !userId || !Object.values(Role).includes(role)) {
     console.error('Invalid role update data:', { userId, role });
     // Consider throwing an error or returning feedback
     // For form actions, throwing an error is often preferred
-    throw new Error('Invalid data for role update.'); 
+    throw new Error('Invalid data for role update.');
   }
-                         
+
   // Auth check
-  const authData = await auth();
-  const adminClerkId = authData.userId;
-  if (!adminClerkId) {
-      console.error('Unauthorized attempt to update role');
-      throw new Error("Unauthorized"); 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminId = user?.id;
+
+  if (!adminId) {
+    console.error('Unauthorized attempt to update role');
+    throw new Error("Unauthorized");
   }
-  const adminUser = await prisma.user.findFirst({ where: { userId: adminClerkId }});
+  const adminUser = await prisma.user.findFirst({ where: { userId: adminId } });
   if (adminUser?.role !== Role.ADMIN) {
-      console.error('Forbidden attempt to update role');
-      throw new Error("Forbidden");
+    console.error('Forbidden attempt to update role');
+    throw new Error("Forbidden");
   }
-                         
+
   // Database update
   try {
     await prisma.user.update({ where: { id: userId }, data: { role } });
@@ -175,19 +180,20 @@ export async function updateUserRole(formData: FormData): Promise<void> { // Ret
  * @returns Promise<void> - Form action return type.
  */
 export async function removeUser(formData: FormData): Promise<void> {
-  const authData = await auth();
-  const adminClerkId = authData.userId;
-  
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminId = user?.id;
+
   // Validate admin permissions
-  if (!adminClerkId) { 
-    throw new Error("Unauthorized: No logged-in user."); 
+  if (!adminId) {
+    throw new Error("Unauthorized: No logged-in user.");
   }
-  
-  const adminUser = await prisma.user.findFirst({ 
-    where: { userId: adminClerkId },
+
+  const adminUser = await prisma.user.findFirst({
+    where: { userId: adminId },
     select: { role: true }
   });
-  
+
   if (adminUser?.role !== Role.ADMIN) {
     throw new Error("Forbidden: Only admins can remove users.");
   }
@@ -210,10 +216,10 @@ export async function removeUser(formData: FormData): Promise<void> {
     }
 
     // Delete user from database
-    await prisma.user.delete({ 
-      where: { id: userId } 
+    await prisma.user.delete({
+      where: { id: userId }
     });
-    
+
     // Refresh the page
     revalidatePath('/users');
   } catch (error) {
@@ -229,19 +235,20 @@ export async function removeUser(formData: FormData): Promise<void> {
  * @returns Promise<{success: boolean, error?: string}> - Response to be used by client.
  */
 export async function updateUserName(formData: FormData): Promise<{ success: boolean; error?: string }> {
-  const authData = await auth();
-  const adminClerkId = authData.userId;
-  
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminId = user?.id;
+
   // Validate admin permissions
-  if (!adminClerkId) { 
-    return { success: false, error: "Unauthorized: No logged-in user." }; 
+  if (!adminId) {
+    return { success: false, error: "Unauthorized: No logged-in user." };
   }
-  
-  const adminUser = await prisma.user.findFirst({ 
-    where: { userId: adminClerkId },
+
+  const adminUser = await prisma.user.findFirst({
+    where: { userId: adminId },
     select: { role: true }
   });
-  
+
   if (adminUser?.role !== Role.ADMIN) {
     return { success: false, error: "Forbidden: Only admins can edit user names." };
   }
@@ -249,11 +256,11 @@ export async function updateUserName(formData: FormData): Promise<{ success: boo
   // Get and validate parameters
   const userId = formData.get('userId') as string;
   const newName = formData.get('name') as string;
-  
+
   if (!userId) {
     return { success: false, error: "User ID is required." };
   }
-  
+
   if (!newName || newName.trim() === '') {
     return { success: false, error: "Name cannot be empty." };
   }
@@ -268,15 +275,15 @@ export async function updateUserName(formData: FormData): Promise<{ success: boo
 
     // Refresh the page
     revalidatePath('/users');
-    
-    return { 
-      success: true 
+
+    return {
+      success: true
     };
   } catch (error) {
     console.error("Error updating user name:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to update user name." 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update user name."
     };
   }
-} 
+}

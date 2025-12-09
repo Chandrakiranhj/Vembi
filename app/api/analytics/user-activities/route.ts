@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 // Define the response type
@@ -8,10 +8,14 @@ interface ActivityResponse {
   totalCount: number;
   stats: {
     totalDefects: number;
-    totalReturnQcItems: number; 
+    totalReturnQcItems: number;
     totalAssemblies: number;
     totalBatches: number;
     totalActivities: number;
+    defectsGrowth: number;
+    returnsGrowth: number;
+    assembliesGrowth: number;
+    batchesGrowth: number;
   };
 }
 
@@ -28,9 +32,10 @@ interface Activity {
 export async function GET(req: NextRequest): Promise<NextResponse<ActivityResponse | { error: string }>> {
   try {
     // Get authenticated user ID
-    const auth = getAuth(req);
-    const userId = auth.userId;
-    
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -38,17 +43,26 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
     // Extract query parameters
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
-    
+
     // Initialize collections for activities and stats
     let defectActivities: Activity[] = [];
     let returnQcActivities: Activity[] = [];
     let assemblyActivities: Activity[] = [];
     let batchActivities: Activity[] = [];
-    
+
     let totalDefects = 0;
     let totalReturnQcItems = 0;
     let totalAssemblies = 0;
     let totalBatches = 0;
+
+    let defectsThisMonth = 0;
+    let returnsThisMonth = 0;
+    let assembliesThisMonth = 0;
+    let batchesThisMonth = 0;
+
+    // Calculate start of current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Get user from database
     let user = null;
@@ -58,7 +72,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
           userId: userId
         }
       });
-      
+
       if (!user) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
@@ -101,6 +115,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
       totalDefects = await prisma.defect.count({
         where: {
           reportedById: user.id
+        }
+      });
+
+      // Get count this month
+      defectsThisMonth = await prisma.defect.count({
+        where: {
+          reportedById: user.id,
+          createdAt: {
+            gte: startOfMonth
+          }
         }
       });
     } catch (error) {
@@ -149,6 +173,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
           qcById: user.id
         }
       });
+
+      // Get count this month
+      returnsThisMonth = await prisma.returnQC.count({
+        where: {
+          qcById: user.id,
+          createdAt: {
+            gte: startOfMonth
+          }
+        }
+      });
     } catch (error) {
       console.error("Error fetching return QC items:", error);
       // Continue with empty array instead of failing
@@ -186,6 +220,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
           assembledById: user.id
         }
       });
+
+      // Get count this month
+      assembliesThisMonth = await prisma.assembly.count({
+        where: {
+          assembledById: user.id,
+          createdAt: {
+            gte: startOfMonth
+          }
+        }
+      });
     } catch (error) {
       console.error("Error fetching assemblies:", error);
       // Continue with empty array instead of failing
@@ -195,7 +239,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
     try {
       // Since StockBatch doesn't have a direct user relationship,
       // we'll filter the batches based on related activities performed by this user
-      
+
       // First get assemblies that used components from batches
       const userAssemblyComponentBatches = await prisma.assemblyComponentBatch.findMany({
         where: {
@@ -208,10 +252,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
         },
         distinct: ['stockBatchId']
       });
-      
+
       // Get batch IDs from assemblies
       const batchIdsFromAssemblies = userAssemblyComponentBatches.map(acb => acb.stockBatchId);
-      
+
       // Get batches from ReturnQCDefect where the user performed QC
       const userReturnQCDefectBatches = await prisma.returnQCDefect.findMany({
         where: {
@@ -224,13 +268,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
         },
         distinct: ['batchId']
       });
-      
+
       // Get batch IDs from return QCs
       const batchIdsFromReturnQCs = userReturnQCDefectBatches.map(rqcd => rqcd.batchId);
-      
+
       // Combine all batch IDs
-      const userRelatedBatchIds = [...new Set([...batchIdsFromAssemblies, ...batchIdsFromReturnQCs])];
-      
+      const userRelatedBatchIds = [...new Set([...batchIdsFromAssemblies, ...batchIdsFromReturnQCs])].filter((id): id is string => id !== null);
+
       // Query for batches with these IDs
       const stockBatches = await prisma.stockBatch.findMany({
         where: {
@@ -266,6 +310,21 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
 
       // Get total count of batches related to this user
       totalBatches = userRelatedBatchIds.length;
+
+      // For batches, calculating "this month" is harder because we are filtering by ID list.
+      // We can check how many of the fetched batches are from this month, but that's only for the 'take' limit.
+      // A better approximation is to count how many of the *related* batches were created this month.
+      batchesThisMonth = await prisma.stockBatch.count({
+        where: {
+          id: {
+            in: userRelatedBatchIds
+          },
+          createdAt: {
+            gte: startOfMonth
+          }
+        }
+      });
+
     } catch (error) {
       console.error("Error fetching stock batches:", error);
       // Continue with empty array instead of failing
@@ -280,9 +339,21 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
     ]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit);
-    
+
     // Calculate total number of activities
     const totalActivities = totalDefects + totalReturnQcItems + totalAssemblies + totalBatches;
+
+    // Helper to calculate growth percentage
+    const calculateGrowth = (total: number, thisMonth: number) => {
+      const priorTotal = total - thisMonth;
+      if (priorTotal === 0) return thisMonth > 0 ? 100 : 0;
+      return ((thisMonth / priorTotal) * 100);
+    };
+
+    const defectsGrowth = calculateGrowth(totalDefects, defectsThisMonth);
+    const returnsGrowth = calculateGrowth(totalReturnQcItems, returnsThisMonth);
+    const assembliesGrowth = calculateGrowth(totalAssemblies, assembliesThisMonth);
+    const batchesGrowth = calculateGrowth(totalBatches, batchesThisMonth);
 
     return NextResponse.json({
       activities: allActivities,
@@ -292,10 +363,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
         totalReturnQcItems,
         totalAssemblies,
         totalBatches,
-        totalActivities
+        totalActivities,
+        defectsGrowth,
+        returnsGrowth,
+        assembliesGrowth,
+        batchesGrowth
       }
     });
-    
+
   } catch (error) {
     console.error("Error in user activities endpoint:", error);
     return NextResponse.json(
@@ -303,4 +378,4 @@ export async function GET(req: NextRequest): Promise<NextResponse<ActivityRespon
       { status: 500 }
     );
   }
-} 
+}

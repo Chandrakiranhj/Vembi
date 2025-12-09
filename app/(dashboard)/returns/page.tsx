@@ -9,16 +9,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default function ReturnsPage() {
   const [activeTab, setActiveTab] = useState('log');
   const [tabLoading, setTabLoading] = useState(false);
+  const [autoOpenReturnId, setAutoOpenReturnId] = useState<string | null>(null);
 
   // Handle tab change with loading state
   const handleTabChange = (value: string) => {
     setTabLoading(true);
     setActiveTab(value);
-    
+
     // Simulate loading time (remove this in production and use real loading states)
     setTimeout(() => {
       setTabLoading(false);
     }, 500);
+  };
+
+  const handleReturnLogged = (returnId: string) => {
+    setAutoOpenReturnId(returnId);
+    handleTabChange('qc');
   };
 
   return (
@@ -30,28 +36,28 @@ export default function ReturnsPage() {
         <CardContent>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger 
-                value="log" 
+              <TabsTrigger
+                value="log"
                 isLoading={tabLoading && activeTab === 'log'}
               >
                 Log Returns
               </TabsTrigger>
-              <TabsTrigger 
-                value="qc" 
+              <TabsTrigger
+                value="qc"
                 isLoading={tabLoading && activeTab === 'qc'}
               >
                 Quality Control
               </TabsTrigger>
             </TabsList>
             <TabsContent value="log">
-              <ReturnsLog />
+              <ReturnsLog onReturnLogged={handleReturnLogged} />
             </TabsContent>
             <TabsContent value="qc">
-              <ReturnsQC />
+              <ReturnsQC autoOpenReturnId={autoOpenReturnId} onAutoOpenComplete={() => setAutoOpenReturnId(null)} />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
     </div>
   );
-} 
+}

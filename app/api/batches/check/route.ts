@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
 
 export async function GET(req: NextRequest) {
   try {
     // Only admins can check for invalid data
-    const { userId } = await getAuth(req);
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const isAuthorized = await checkUserRole(userId, [Role.ADMIN]);
-    
+
     if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
-    
+
     // Use Prisma's raw query capability to find StockBatch entries with invalid data
     const batchesWithNullVendorIds = await prisma.stockBatch.findMany({
       where: {
@@ -29,7 +36,7 @@ export async function GET(req: NextRequest) {
       },
       take: 10
     });
-    
+
     // Check for batches with vendorId that doesn't exist in the Vendor table
     const orphanedBatches = await prisma.stockBatch.findMany({
       where: {
@@ -46,7 +53,7 @@ export async function GET(req: NextRequest) {
       },
       take: 10
     });
-    
+
     return NextResponse.json({
       batchesWithNullVendorIds: {
         count: batchesWithNullVendorIds.length,
@@ -70,9 +77,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error checking batches:", error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: "Failed to check batches",
       details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 });
   }
-} 
+}

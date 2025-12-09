@@ -10,7 +10,6 @@ export interface Component {
   // currentQuantity removed
   totalStock: number; // Added total stock from API
   minimumQuantity: number;
-  unitPrice?: number | null; // Adjusted to match schema/API
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -33,7 +32,7 @@ export function useComponents(options: UseComponentsOptions = {}) {
   const fetchComponents = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Build query string (lowStock param removed from API call)
       const params = new URLSearchParams();
@@ -43,30 +42,30 @@ export function useComponents(options: UseComponentsOptions = {}) {
       if (options.search) {
         params.append('search', options.search);
       }
-      
+
       const response = await fetch(`/api/components?${params.toString()}`);
-      
+
       if (!response.ok) {
         let errorMsg = `Error fetching components: ${response.statusText}`;
         try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
         } catch { /* Ignore json parse error */ }
         throw new Error(errorMsg);
       }
-      
+
       // Expect data to match the updated Component interface with totalStock
-      const data: Component[] = await response.json(); 
+      const data: Component[] = await response.json();
       setComponents(data);
-    } catch (err: unknown) { 
-        const message = err instanceof Error ? err.message : 'Failed to fetch components';
-        setError(message);
-        console.error('Error fetching components:', err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch components';
+      setError(message);
+      console.error('Error fetching components:', err);
     } finally {
       setIsLoading(false);
     }
-  // Update dependency array if options object itself can change reference
-  }, [options.category, options.search]); 
+    // Update dependency array if options object itself can change reference
+  }, [options.category, options.search]);
 
   useEffect(() => {
     fetchComponents();
@@ -82,20 +81,20 @@ export function useComponents(options: UseComponentsOptions = {}) {
         },
         body: JSON.stringify(componentData), // Send data matching POST API
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add component');
       }
-      
+
       const newComponent = await response.json();
       // After adding, refetch to get the component with calculated totalStock
-      fetchComponents(); 
+      fetchComponents();
       return newComponent;
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       console.error('Error adding component:', err);
       if (err instanceof Error) throw err;
-      throw new Error('An unknown error occurred while adding the component.'); 
+      throw new Error('An unknown error occurred while adding the component.');
     }
   };
 
@@ -109,20 +108,20 @@ export function useComponents(options: UseComponentsOptions = {}) {
         },
         body: JSON.stringify(componentData), // Send data matching PUT API
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update component');
       }
-      
+
       const updatedComponent = await response.json();
       // Update local state or refetch for consistency
-      fetchComponents(); 
+      fetchComponents();
       return updatedComponent;
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       console.error('Error updating component:', err);
       if (err instanceof Error) throw err;
-      throw new Error('An unknown error occurred while updating the component.'); 
+      throw new Error('An unknown error occurred while updating the component.');
     }
   };
 
@@ -132,19 +131,19 @@ export function useComponents(options: UseComponentsOptions = {}) {
       const response = await fetch(`/api/components/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete component');
       }
-      
+
       // Refetch after delete
-      fetchComponents(); 
+      fetchComponents();
       return true;
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       console.error('Error deleting component:', err);
       if (err instanceof Error) throw err;
-      throw new Error('An unknown error occurred while deleting the component.'); 
+      throw new Error('An unknown error occurred while deleting the component.');
     }
   };
 
@@ -153,31 +152,31 @@ export function useComponents(options: UseComponentsOptions = {}) {
   const getComponent = async (id: string): Promise<Component | null> => { // Keeping return type for now
     try {
       const response = await fetch(`/api/components/${id}`);
-      
+
       if (!response.ok) {
-         let errorMsg = `Failed to fetch component: ${response.statusText}`;
-         try {
-             const errorData = await response.json();
-             errorMsg = errorData.error || errorMsg;
-         } catch { /* Ignore json parse error */ }
-         throw new Error(errorMsg);
-      }
-      
-      // The API returns stockBatches array, need to calculate totalStock here if needed by caller
-      const rawData = await response.json(); 
-      if (rawData && Array.isArray(rawData.stockBatches)) {
-         const totalStock = rawData.stockBatches.reduce((sum: number, batch: { currentQuantity: number }) => sum + batch.currentQuantity, 0);
-         // Return data conforming to the hook's Component interface
-         return { ...rawData, stockBatches: undefined, totalStock }; 
-      } else {
-         // Handle case where stockBatches might be missing or not an array (shouldn't happen with API changes)
-         return { ...rawData, stockBatches: undefined, totalStock: 0 };
+        let errorMsg = `Failed to fetch component: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch { /* Ignore json parse error */ }
+        throw new Error(errorMsg);
       }
 
-    } catch (err: unknown) { 
+      // The API returns stockBatches array, need to calculate totalStock here if needed by caller
+      const rawData = await response.json();
+      if (rawData && Array.isArray(rawData.stockBatches)) {
+        const totalStock = rawData.stockBatches.reduce((sum: number, batch: { currentQuantity: number }) => sum + batch.currentQuantity, 0);
+        // Return data conforming to the hook's Component interface
+        return { ...rawData, stockBatches: undefined, totalStock };
+      } else {
+        // Handle case where stockBatches might be missing or not an array (shouldn't happen with API changes)
+        return { ...rawData, stockBatches: undefined, totalStock: 0 };
+      }
+
+    } catch (err: unknown) {
       console.error('Error fetching component:', err);
       if (err instanceof Error) throw err;
-      throw new Error('An unknown error occurred while fetching the component.'); 
+      throw new Error('An unknown error occurred while fetching the component.');
     }
   };
 
@@ -191,4 +190,4 @@ export function useComponents(options: UseComponentsOptions = {}) {
     deleteComponent,
     getComponent,
   };
-} 
+}
