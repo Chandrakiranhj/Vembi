@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { checkUserRole } from "@/lib/roleCheck";
+import { Role } from "@prisma/client";
 
 interface DefectPayload {
   componentId: string;
@@ -31,6 +33,15 @@ export async function POST(
 
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check authorization - only ADMIN and RETURN_QC can complete QC
+    const isAuthorized = await checkUserRole(authUser.id, [Role.ADMIN, Role.RETURN_QC]);
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: "Forbidden: You do not have permission to complete QC inspections." },
+        { status: 403 }
+      );
     }
 
     // Get internal user ID

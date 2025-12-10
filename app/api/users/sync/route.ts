@@ -69,8 +69,9 @@ export async function POST(req: NextRequest) {
 
     let user;
 
-    // Special handling for admin email
-    const isAdminEmail = email === 'chandrakiranhj@gmail.com';
+    // Special handling for admin email - configured via environment variable
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const isAdminEmail = ADMIN_EMAIL && email === ADMIN_EMAIL;
 
     try {
       if (existingUserByEmail && existingUserById) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { Role, Prisma } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
+import { z } from "zod";
 
 // Define allowed roles
 const ROLES = {
@@ -11,6 +12,16 @@ const ROLES = {
   MODIFY_DEFECTS: [Role.ADMIN, Role.SERVICE_PERSON],
   DELETE_DEFECTS: [Role.ADMIN],
 };
+
+// Validation schema for defect creation
+const createDefectSchema = z.object({
+  componentId: z.string().uuid("Invalid component ID format"),
+  severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+  description: z.string().min(1, "Description is required").max(1000, "Description too long"),
+  images: z.array(
+    z.string().url("Invalid image URL").startsWith('https://', "Only HTTPS URLs are allowed")
+  ).max(10, "Maximum 10 images allowed").optional(),
+});
 
 // GET: Fetch all defects with optional filtering
 export async function GET(req: NextRequest) {
@@ -122,19 +133,17 @@ export async function POST(req: NextRequest) {
     }
 
     const json = await req.json();
-    const {
-      componentId,
-      severity,
-      description,
-      images,
-    } = json;
 
-    if (!componentId || !description) {
+    // Validate input data
+    const validation = createDefectSchema.safeParse(json);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Component ID and description are required" },
+        { error: "Invalid input data", details: validation.error.errors },
         { status: 400 }
       );
     }
+
+    const { componentId, severity, description, images } = validation.data;
 
     const component = await prisma.component.findUnique({
       where: { id: componentId }

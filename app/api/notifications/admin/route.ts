@@ -2,20 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
 
-// Configuration for admin emails
-const ADMIN_EMAIL = 'chandrakiranhj@gmail.com';  // The admin email address
-const NOTIFICATION_ENABLED = true;  // Enable/disable notifications
+// Configuration for admin emails - from environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const NOTIFICATION_ENABLED = process.env.NOTIFICATION_ENABLED !== 'false';  // Enable/disable notifications
 
-// Configure email transporter (using environment variables would be better in production)
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER || "your-email@gmail.com", // email user (should be in env var)
-    pass: process.env.EMAIL_PASS || "your-app-password", // email password or app password (should be in env var)
-  },
-});
+// Validate required email configuration
+if (NOTIFICATION_ENABLED && (!process.env.EMAIL_USER || !process.env.EMAIL_PASS)) {
+  console.warn('Email credentials not configured. Notifications will be disabled.');
+}
+
+// Configure email transporter
+const transporter = process.env.EMAIL_USER && process.env.EMAIL_PASS
+  ? nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    })
+  : null;
 
 // Endpoint to notify admin about new user registrations
 export async function POST(req: NextRequest) {
@@ -30,19 +37,19 @@ export async function POST(req: NextRequest) {
     }
     
     console.log(`Sending admin notification for new user: ${userEmail}`);
-    
-    // Check if we should actually send notifications
-    if (!NOTIFICATION_ENABLED) {
-      console.log("Admin notifications are disabled. Would have sent to:", ADMIN_EMAIL);
-      return NextResponse.json({ success: true, message: "Notification disabled" });
+
+    // Check if notifications are properly configured
+    if (!NOTIFICATION_ENABLED || !transporter || !ADMIN_EMAIL) {
+      console.log("Admin notifications are disabled or not configured properly.");
+      return NextResponse.json({ success: true, message: "Notification disabled or not configured" });
     }
-    
+
     // Send email notification to admin
     const adminUser = await prisma.user.findFirst({
       where: { email: ADMIN_EMAIL },
       select: { id: true, email: true }
     });
-    
+
     if (!adminUser) {
       console.warn(`Admin email ${ADMIN_EMAIL} not found in database`);
       return NextResponse.json({ success: false, error: "Admin user not found" });
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
       
       // Send email
       await transporter.sendMail({
-        from: `"Vembi System" <${process.env.EMAIL_USER || "your-email@gmail.com"}>`,
+        from: `"Vembi System" <${process.env.EMAIL_USER}>`,
         to: ADMIN_EMAIL,
         subject: "New User Registration Pending Approval",
         html: `

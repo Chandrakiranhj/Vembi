@@ -3,12 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { Role } from "@prisma/client";
 import { checkUserRole } from "@/lib/roleCheck";
+import { z } from "zod";
 
 // Define allowed roles
 const ROLES = {
   VIEW_BATCHES: [Role.ADMIN, Role.ASSEMBLER, Role.RETURN_QC, Role.SERVICE_PERSON],
   CREATE_BATCHES: [Role.ADMIN, Role.ASSEMBLER],
 };
+
+// Validation schema for batch creation
+const createBatchSchema = z.object({
+  componentId: z.string().uuid("Invalid component ID format"),
+  vendorId: z.string().uuid("Invalid vendor ID format"),
+  initialQuantity: z.number().int().positive("Initial quantity must be a positive integer"),
+  dateReceived: z.string().datetime().optional(),
+  notes: z.string().max(500, "Notes too long").optional(),
+  invoiceImage: z.string().url("Invalid invoice image URL").startsWith('https://', "Only HTTPS URLs are allowed").optional().nullable(),
+});
 
 // GET: Fetch all stock batches with optional filtering
 export async function GET(req: NextRequest) {
@@ -157,22 +168,17 @@ export async function POST(req: NextRequest) {
     }
 
     const json = await req.json();
-    const {
-      componentId,
-      initialQuantity,
-      vendorId,
-      dateReceived,
-      notes,
-      invoiceImage
-    } = json;
 
-    // Validate required fields
-    if (!componentId || !initialQuantity || !vendorId || initialQuantity <= 0) {
+    // Validate input data
+    const validation = createBatchSchema.safeParse(json);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Component ID, vendor ID, and a positive initial quantity are required" },
+        { error: "Invalid input data", details: validation.error.errors },
         { status: 400 }
       );
     }
+
+    const { componentId, initialQuantity, vendorId, dateReceived, notes, invoiceImage } = validation.data;
 
     // Check if component exists
     const component = await prisma.component.findUnique({
